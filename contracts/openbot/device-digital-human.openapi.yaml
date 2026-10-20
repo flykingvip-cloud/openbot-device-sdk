@@ -309,7 +309,7 @@ paths:
               $ref: "#/components/schemas/ToolResult"
       responses:
         "200":
-          description: "Result accepted, or the recorded response when Idempotency-Key and body match an accepted result (duplicate true)."
+          description: "Result accepted, the processing accept while vision is still running, or the recorded response when Idempotency-Key and body match (duplicate true)."
         "400":
           $ref: "#/components/responses/Error"
         "409":
@@ -418,7 +418,7 @@ components:
       required: false
       schema:
         type: string
-      description: Required for turns and tool results. The same key and body replay the accepted response for 24 hours in memory, including a tool result retried after revoke. The same key and a different body returns IDEMPOTENCY_CONFLICT. A duplicate is not LATE_RESULT.
+      description: Required for turns and tool results. The same key and body replay the accepted response for 24 hours in memory, including a tool result retried after revoke and a tool result whose vision call is still in flight. The in-flight replay returns the processing accept and does not pull media or call the model again. The same key and a different body returns IDEMPOTENCY_CONFLICT. A duplicate is not LATE_RESULT. A close during vision is not stored as a successful completion.
     Cursor:
       name: cursor
       in: query

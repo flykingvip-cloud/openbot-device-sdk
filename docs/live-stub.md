@@ -18,7 +18,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 
 ## 样例客户端
 
-口令写在 openbot-vp 合约针 `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` 的 `docs/integrations/device-digital-human/staging.md`。本环境访问该仓库得到 404，所以这里不复制、也不编造用户名和口令。OpenAPI 只声明了角色：
+口令写在 openbot-vp 合约针 `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` 的 `docs/integrations/device-digital-human/staging.md`。本环境访问该仓库得到 404，所以这里不复制、也不编造用户名和口令。OpenAPI 只声明了角色：
 
 | 角色 | 方案 | 环境变量 |
 |---|---|---|
@@ -72,6 +72,24 @@ npm run live-stub -- --camera
 
 ## 数字人会话
 
-当前针是 PR #10 的 `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`。`41b75612…` 已作废。路径和 SSE 事件名仍与入库 OpenAPI 一致，`routesAligned` 保持 true。这只是静态对齐，不是端到端联调通过。B2–B5 仍是本地 stand-in。
+当前针是 PR #11 的 `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`。`bc3d9fda…` 已作废。路径和 SSE 事件名仍与入库 OpenAPI 一致，`routesAligned` 保持 true。这只是静态对齐，不是端到端联调通过。B2–B5 在没有 stub URL 时仍是本地 stand-in。
+
+## 纵向消费
+
+`integrations/openbot-longitudinal` 只在 stub URL 配齐 service Basic，并且具备 grant 凭证、兑换三元组或完整 consent 请求时才调用 OpenBot。本地模拟语音要另外把 `OPENBOT_DEVICE_DH_TEST_MODE` 设成 `1`。两者都没有时连接器关闭，不会本地编造 `authorizationRef`，也不会把 ASR 文本播成助手话。
+
+冻结的 PKCE S256 顺序：
+
+1. `POST /api/integrations/v1/consent/authorization-codes`，只有 consent Basic。正文只有 `serviceAudience`、`redirectUri`、`codeChallenge`、`codeChallengeMethod`（只能是 `S256`）、`digitalHumanId`、`deviceId`、`scopes`、`state`。这里不发送 `authorizationRef`。
+2. `POST /api/integrations/v1/grants/exchange`，只有 service Basic 和 `Idempotency-Key`。响应里的 `authorizationRef`、一次性 `authorizationCredential` 和 `bindingVersion` 以服务器为准。
+3. 之后的读 grant、会话、回合、run SSE、设备事件、工具结果、取消、撤销使用 service Basic 和 `X-OpenBot-Grant-Credential`。
+4. `POST /grants/{authorizationRef}/rebind` 只用 consent Basic，正文只有 `digitalHumanId`。旧的 `bindingVersion` 会被拒绝，不会继续发回合或工具结果。
+5. `POST /grants/{authorizationRef}/revoke` 可重复调用，结果保持 revoked。
+
+`assistant` 只接受冻结形状：`digitalHumanId`、`displayName`、`status`，以及 OpenAPI 里列出的可选字符串。别名和调用方自带的 assistant 对象不会当成授权结果。
+
+没有客户端注册 HTTP API。stub 配置只是 `clients[]` 和 `digitalHumans[]`：`clientId` 与至少 16 字符的 secret，Basic；角色是 `consent` 或 `service`。consent 有 `allowedDigitalHumanIds` 和 `scopes`。service 有 `redirectUris`。数字人有 `gatewayAgentId`、`userSubject`、`tenantId` 和 `assistant.*`。配对挑战不是这些字段。
+
+样例用户名和口令只在 openbot-vp 的 staging.md，不写入本仓库。默认会话键是 `device-dh:<digitalHumanId>:<conversationId>`。实验语音只把 `assistant.visible` 和 `assistant.final` 拿去播。`npm test` 在凭证未设置时跳过真实 stub，这不是端到端通过。设备平台自己的配对和给 OpenBot UI 的设备控制 API 见 [device-platform.md](device-platform.md)，不写进 OpenBot 契约。
 
 数字人配置要带 `gatewayAgentId`（`OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID`，实验配置里没设置则为 null）。默认代理会话键是 `device-dh:<digitalHumanId>:<conversationId>`。只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 时才改用 UI 会话键。冻结字段名不变。本地 B2 `sessionId` 不是这把键。
