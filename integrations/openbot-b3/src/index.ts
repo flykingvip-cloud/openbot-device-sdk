@@ -1,5 +1,6 @@
 import { assertSessionId } from "../../../adapters/metalio/src/index.ts";
 import { isPlainObject, standInApi, type AssistantFields } from "../../../contracts/src/index.ts";
+import { LabCameraSession, type CameraCaptureResult, type LabMediaContentType } from "../../openbot-media/src/index.ts";
 import { invokeDeviceTool, type DeviceToolInput, type DeviceToolResult } from "../../../sdk/src/device-tools.ts";
 
 export interface VisibleTtsResult {
@@ -9,9 +10,14 @@ export interface VisibleTtsResult {
   visibleOnly: true;
 }
 
+export interface LabCameraToolResult {
+  name: "camera.capture";
+  capture: CameraCaptureResult;
+}
+
 export interface ToolInvocation {
   standIn: "B3";
-  result: DeviceToolResult | VisibleTtsResult;
+  result: DeviceToolResult | VisibleTtsResult | LabCameraToolResult;
 }
 
 export interface B3ToolInput extends DeviceToolInput {
@@ -48,6 +54,8 @@ export interface B3Options {
   scope?: B3Scope;
   /** When set, revocation and the current binding are checked before a cache hit is returned. */
   plane?: B3Plane;
+  /** Lab camera/media loop. `camera.capture` is refused without it. Flash stays disabled. */
+  camera?: LabCameraSession;
 }
 
 export class IdempotencyConflictError extends Error {
@@ -99,7 +107,7 @@ export function speakVisibleAssistant(sessionId: string, assistant: AssistantFie
 /**
  * Consumer for stand-in B3 `POST /v1/device/tools:invoke`.
  * Delegates to the A3 device-tool catalog. Flash, mass flash, and reboot throw.
- * `assistant.tts` is a stand-in speech projection, not a firmware flash path.
+ * `camera.capture` uses the lab media loop only. `assistant.tts` is a speech projection.
  */
 export function invokeOpenBotTool(name: string, input: B3ToolInput = {}, options: B3Options = {}): ToolInvocation {
   const api = standInApi("B3");
@@ -111,12 +119,15 @@ export function invokeOpenBotTool(name: string, input: B3ToolInput = {}, options
   if (cached) {
     return cached;
   }
-  const invocation = execute(name, input);
+  const invocation = execute(name, input, options);
   writeIdempotent(name, input, options, invocation);
   return invocation;
 }
 
-function execute(name: string, input: B3ToolInput): ToolInvocation {
+function execute(name: string, input: B3ToolInput, options: B3Options): ToolInvocation {
+  if (name === "camera.capture") {
+    return { standIn: "B3", result: captureLabCamera(input, options) };
+  }
   if (name === "assistant.tts") {
     if (input.sessionId === undefined || input.assistant === undefined) {
       throw new VisibleTtsError("assistant.tts requires sessionId and assistant");
@@ -124,6 +135,28 @@ function execute(name: string, input: B3ToolInput): ToolInvocation {
     return { standIn: "B3", result: speakVisibleAssistant(input.sessionId, input.assistant) };
   }
   return { standIn: "B3", result: invokeDeviceTool(name, input) };
+}
+
+function captureLabCamera(input: B3ToolInput, options: B3Options): LabCameraToolResult {
+  if (options.camera === undefined || options.scope === undefined) {
+    throw new ToolAuthError("tool_binding", "camera.capture requires the lab camera gateway and the current binding scope");
+  }
+  const payload = input.payload ?? {};
+  const requestId = payload.requestId;
+  if (typeof requestId !== "string" || requestId.length === 0) {
+    throw new ToolAuthError("tool_binding", "camera.capture requires payload.requestId");
+  }
+  const contentType = payload.contentType === "image/jpeg" || payload.contentType === "image/png" ? payload.contentType : undefined;
+  const captured = options.camera.capture({
+    requestId,
+    authorizationRef: options.scope.authorizationRef,
+    bindingVersion: options.scope.bindingVersion,
+    deviceId: options.scope.deviceId,
+    ...(typeof payload.runId === "string" ? { runId: payload.runId } : {}),
+    ...(contentType === undefined ? {} : { contentType: contentType satisfies LabMediaContentType }),
+    ...(options.idempotencyKey === undefined ? {} : { idempotencyKey: options.idempotencyKey }),
+  });
+  return { name: "camera.capture", capture: captured };
 }
 
 function visibleSpeech(assistant: AssistantFields): string {
