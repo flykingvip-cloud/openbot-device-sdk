@@ -4,14 +4,14 @@
 
 ## 合约
 
-- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`
-- [ ] 文档写明这是 openbot-vp `main` 上 PR #7 的 squash merge
-- [ ] `previousSha` 为已作废的合并前 tip `554910d835f3baadb1d753532ad510b1b477be09`
-- [ ] 更早的 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 也在 `invalidatedShas` 里，不再当作当前针
+- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `536a963b119f0a00675516401c52dd0f6187b196`
+- [ ] 文档写明这是 openbot-vp `main` 上 PR #8 的 squash merge（真实 Agent/vision）
+- [ ] `previousSha` 为已作废的 PR #7 squash `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`，它不是 `officialMergeSha`
+- [ ] `554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] 文档写明本环境读取该仓库得到 404，stand-in 路由没有按 main 上的 stub 改写
-- [ ] B0–B5 仍走 `contracts/stand-in/b0-b5.json`，`routesAligned` 仍是 false
+- [ ] 文档写明本环境读取该仓库 OpenAPI 得到 404，槽文件不是合成契约，`routesAligned` 仍是 false
+- [ ] B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`；B0 与 B2–B5 仍是本地 stand-in
 - [ ] 冻结字段仍是 `authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`、`assistant.*`
 - [ ] 未设置 `OPENBOT_DEVICE_DH_STUB_URL` 时不访问 live stub
 
@@ -24,12 +24,14 @@
 - [ ] 打断路径不调用 ResetDecoder
 - [ ] 满队列残留仍是 40 × 60 ms = 2400 ms
 - [ ] 没有把 `api.tenclass.net` 配成语音或 OTA 生产入口
+- [ ] 真实 ASR / TTS WebSocket 仍未接入；实验配置里的 voice WSS 只是 `wss://lab.invalid/voice`
 
 ## A3 媒体与工具
 
 - [ ] 屏的运行时格式仍按 RGB888、24 bpp、3 块 720×720 缓冲记录；1,036,800 只作为 RGB565 算术
 - [ ] 数字人表情仍收敛到 6 类；聊天表情仍用原始名字加 `.eaf`
 - [ ] 摄像头描述仍是 OV2710 / 预览裁剪 720×600 / JPEG 360×300 质量 55，且没有在 SDK 里抓帧
+- [ ] 设备端摄像头采集仍未实现
 - [ ] `system.reboot` 不能从 B3 发出
 
 ## A4 控制面
@@ -37,7 +39,9 @@
 - [ ] 认领码是 6 位，绑定前必须先认领
 - [ ] rebind 更换 `authorizationRef`、递增 `bindingVersion`；`assistant` 字段名不变，新资料替换旧值
 - [ ] `flash()` 与 `massFlash()` 仍然抛错
-- [ ] 实验 OTA 记录的 `firmwareUrl` 仍是 null，`force` 仍是 0
+- [ ] 实验 OTA 记录和配置 HTTP 的 `firmwareUrl` 仍是 null，`force` 仍是 0
+- [ ] 设备固件烧录仍未实现
+- [ ] `npm run ota-config` 只提供本机实验配置（认领状态、绑定版本、短时 token、voice 占位），不是生产 OTA
 - [ ] 拒绝量产、批量、fleet，以及十班和 C5 托管包主机
 - [ ] `npm test` 与 `npm run typecheck` 为绿
 

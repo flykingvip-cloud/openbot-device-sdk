@@ -1,0 +1,8 @@
+# UNFETCHED SLOT — this is not the openbot-vp OpenAPI document.
+# Source: https://raw.githubusercontent.com/flykingvip-cloud/openbot-vp/536a963b119f0a00675516401c52dd0f6187b196/docs/integrations/device-digital-human/openapi.yaml
+# Fetch returned HTTP 404. Do not parse this file as a contract.
+# TODO: replace these bytes with the raw OpenAPI when that tree is readable.
+# routesAligned stays false until the vendored bytes match consumer paths and event enums.
+unfetched: true
+sha: 536a963b119f0a00675516401c52dd0f6187b196
+httpStatus: 404

@@ -1,5 +1,7 @@
 export { ControlPlaneError, OtaDisabledError } from "./errors.ts";
 export { ControlPlane } from "./control-plane.ts";
+export { LAB_VOICE_WSS_URL, buildLabDeviceConfig, handleLabOtaConfig, startLabOtaConfigServer } from "./ota-config.ts";
+export type { LabDeviceConfig, LabOtaConfigServer } from "./ota-config.ts";
 export type {
   BindInput,
   CameraResultInput,

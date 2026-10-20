@@ -1,7 +1,9 @@
 import {
+  DIGITAL_HUMAN_PROFILE_PATH,
   LIVE_STUB_ENV,
   assertFrozenBinding,
   cloneAssistant,
+  digitalHumanProfileUrl,
   standInApi,
   type AssistantFields,
   type FrozenBinding,
@@ -33,9 +35,9 @@ const IDEMPOTENCY_KEY = /^[A-Za-z0-9_.:-]{1,128}$/;
 const cacheByPlane = new WeakMap<object, Map<string, DigitalHumanProfile>>();
 
 /**
- * Consumer for stand-in B1 `GET /v1/digital-humans/{digitalHumanId}`.
+ * Consumer for B1 `GET /api/integrations/v1/digital-humans/{digitalHumanId}`.
  * Without `OPENBOT_DEVICE_DH_STUB_URL`, reads the local control plane.
- * With the env set, GETs the stub and checks frozen field names.
+ * With the env set, GETs `{base}/api/integrations/v1/digital-humans/{id}`.
  * A repeated `idempotencyKey` returns the first profile unchanged.
  */
 export async function readDigitalHuman(digitalHumanId: string, options: B1Options = {}): Promise<DigitalHumanProfile> {
@@ -58,7 +60,7 @@ async function loadDigitalHuman(digitalHumanId: string, options: B1Options): Pro
     throw new Error("openbot-b1 stand-in requires a ControlPlane when OPENBOT_DEVICE_DH_STUB_URL is unset");
   }
   const api = standInApi("B1");
-  if (api.path !== "/v1/digital-humans/{digitalHumanId}") {
+  if (api.path !== DIGITAL_HUMAN_PROFILE_PATH) {
     throw new Error("openbot-b1 stand-in path drifted");
   }
   const matches = options.plane.findByDigitalHuman(digitalHumanId);
@@ -132,7 +134,7 @@ function cacheKey(digitalHumanId: string, idempotencyKey: string): string {
 }
 
 async function readLiveStub(baseUrl: string, digitalHumanId: string, fetchImpl: typeof fetch): Promise<DigitalHumanProfile> {
-  const url = `${baseUrl.replace(/\/$/, "")}/v1/digital-humans/${encodeURIComponent(digitalHumanId)}`;
+  const url = digitalHumanProfileUrl(baseUrl, digitalHumanId);
   const response = await fetchImpl(url);
   if (!response.ok) {
     throw new Error(`digital human stub failed: ${response.status}`);

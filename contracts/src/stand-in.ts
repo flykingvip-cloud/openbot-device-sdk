@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { DIGITAL_HUMAN_PROFILE_PATH } from "./consumer-mirror.ts";
 import {
   INVALIDATED_CONTRACT_SHAS,
   OPENBOT_CONTRACT_PR,
@@ -63,7 +64,7 @@ const REQUIRED_IDS = ["B0", "B1", "B2", "B3", "B4", "B5"] as const;
 
 const MOCK_ROUTES: Record<(typeof REQUIRED_IDS)[number], { method: "GET" | "POST"; path: string }> = {
   B0: { method: "GET", path: "/v1/device/capabilities" },
-  B1: { method: "GET", path: "/v1/digital-humans/{digitalHumanId}" },
+  B1: { method: "GET", path: DIGITAL_HUMAN_PROFILE_PATH },
   B2: { method: "POST", path: "/v1/device/sessions" },
   B3: { method: "POST", path: "/v1/device/tools:invoke" },
   B4: { method: "GET", path: "/v1/device/media/capabilities" },
@@ -97,10 +98,10 @@ export function parseStandInDocument(value: unknown): StandInDocument {
     throw new Error("stand-in document is not pinned to flykingvip-cloud/openbot-vp");
   }
   if (value.contract.pr !== OPENBOT_CONTRACT_PR || value.contract.status !== "main" || value.contract.merge !== "squash") {
-    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 7 on main");
+    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 8 on main");
   }
   if (value.contract.officialMergeSha !== OPENBOT_CONTRACT_SHA || value.contract.previousSha !== PREVIOUS_CONTRACT_SHA) {
-    throw new Error("official merge SHA must be the current pin; previousSha must record the invalidated pre-merge tip");
+    throw new Error("official merge SHA must be the current pin; previousSha must record the invalidated prior pin");
   }
   if (value.contract.previousShaStatus !== "invalidated") {
     throw new Error("previousSha is invalidated and must not be used as the pin");
