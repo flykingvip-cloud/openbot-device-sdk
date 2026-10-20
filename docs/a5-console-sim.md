@@ -6,13 +6,13 @@
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `fe1e2c2a81fd3814e8588a854695640ca56db64b` |
-| 来源 | openbot-vp `main`，<https://github.com/flykingvip-cloud/openbot-vp/pull/14> 的 squash merge |
-| `previousSha` | `92826116a9b00a596ae2360d8a643d6148050e3c`，PR #12 squash，**已作废** |
-| 更早作废 | `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`、`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`、`41b7561222775e4ad00b056e2a535c7f950bcbe9`、`536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
+| `OPENBOT_CONTRACT_SHA` | `feeac51863d6d88ba83c7e16029b2911209bb0d0` |
+| 来源 | openbot-vp `main`，<https://github.com/flykingvip-cloud/openbot-vp/pull/15> 的 squash merge |
+| `previousSha` | `fe1e2c2a81fd3814e8588a854695640ca56db64b`，PR #14 squash，**已作废** |
+| 更早作废 | `92826116a9b00a596ae2360d8a643d6148050e3c`、`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`、`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`、`41b7561222775e4ad00b056e2a535c7f950bcbe9`、`536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
 | OpenAPI | 已入库，`routesAligned` 为 true。这是静态路径对齐，不是端到端联调通过。B2–B5 仍是 stand-in |
 
-B1 live 路径是 `/api/integrations/v1/digital-humans/{digitalHumanId}`。B0 与 B2–B5 仍是本地 mock。冻结字段名不变。`92826116…` 不是当前 `officialMergeSha`。
+B1 live 路径是 `/api/integrations/v1/digital-humans/{digitalHumanId}`。B0 与 B2–B5 仍是本地 mock。冻结字段名不变。`fe1e2c2…` 不是当前 `officialMergeSha`。
 
 ## 怎么跑
 

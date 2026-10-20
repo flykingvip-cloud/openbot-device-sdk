@@ -10,11 +10,11 @@ import {
   type StagingDb,
 } from "../../services/src/index.ts";
 
-const PINNED_SHA = "fe1e2c2a81fd3814e8588a854695640ca56db64b";
+const PINNED_SHA = "feeac51863d6d88ba83c7e16029b2911209bb0d0";
 const PIN_LINE =
-  "正式针: openbot-vp main，PR #14 的 squash merge。已作废: 92826116a9b00a596ae2360d8a643d6148050e3c、d22db4755311a1a0df9fb5e3d5da60554f8ef6a5、bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a、41b7561222775e4ad00b056e2a535c7f950bcbe9、536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。";
+  "正式针: openbot-vp main，PR #15 的 squash merge。已作废: fe1e2c2a81fd3814e8588a854695640ca56db64b、92826116a9b00a596ae2360d8a643d6148050e3c、d22db4755311a1a0df9fb5e3d5da60554f8ef6a5、bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a、41b7561222775e4ad00b056e2a535c7f950bcbe9、536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。";
 const ACCESS_LINE =
-  "OpenAPI 路径仍按冻结前缀对齐。针是 fe1e2c2a81fd3814e8588a854695640ca56db64b。字段名未改，入库字节不换（更早的树拉取曾返回 404）。routesAligned 为 true，只表示静态 OpenAPI 对齐，不是端到端联调。B2–B5 仍用本地 stand-in。";
+  "OpenAPI 路径仍按冻结前缀对齐。针是 feeac51863d6d88ba83c7e16029b2911209bb0d0。字段名未改，入库字节不换（更早的树拉取曾返回 404）。routesAligned 为 true，只表示静态 OpenAPI 对齐，不是端到端联调。B2–B5 仍用本地 stand-in。";
 const DEVICE_ID = "dev-console";
 const DIGITAL_HUMAN_ID = "dh-console";
 const NOW = 1_700_000_000_000;

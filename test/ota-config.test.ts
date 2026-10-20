@@ -68,7 +68,7 @@ test("public config has pairing hints and never a token or auth profile", () => 
   const control = plane();
   const missing = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790", { env: {} });
   assert.equal(missing.contractSha, OPENBOT_CONTRACT_SHA);
-  assert.equal(missing.contractSha, "fe1e2c2a81fd3814e8588a854695640ca56db64b");
+  assert.equal(missing.contractSha, "feeac51863d6d88ba83c7e16029b2911209bb0d0");
   assert.equal(missing.routesAligned, true);
   assert.equal(missing.claimStatus, "missing");
   assert.equal(missing.pairing.next, "issue-claim");
