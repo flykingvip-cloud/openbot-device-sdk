@@ -6,6 +6,8 @@ OpenBot 的冻结契约仍是 `/api/integrations/v1`。当前针是 `92826116a9b
 
 设备归属和一次性配对挑战由设备平台在进入 OpenBot 授权流程之前完成。连接器不得把 `pairChallenge`、`pairingCode`、`pairingChallenge`、`ownershipProof` 或 `pairNonce` 放进 `/api/integrations/v1` 的请求。
 
+同一路径前缀 `/api/device-platform/v1` 也可能出现在 OpenBot 管理端主机（B1）上；调用本进程时必须使用设备平台连接器的 baseURL，不要用 OpenBot 主机。
+
 ## 边界
 
 | 步骤 | 在哪里 | 用什么 |
