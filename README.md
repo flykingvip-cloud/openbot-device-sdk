@@ -8,14 +8,14 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `feeac51863d6d88ba83c7e16029b2911209bb0d0` |
-| 状态 | openbot-vp `main`，PR #15 的 squash merge |
-| PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/15> |
-| `previousSha` | `fe1e2c2a81fd3814e8588a854695640ca56db64b`，PR #14 squash，**已作废** |
-| 更早作废 | `92826116a9b00a596ae2360d8a643d6148050e3c`、`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`、`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`、`41b7561222775e4ad00b056e2a535c7f950bcbe9`、`536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
+| `OPENBOT_CONTRACT_SHA` | `490a69669c0cf9e68173ceb25cfa89c99438dfb9` |
+| 状态 | openbot-vp `main`，PR #16 的 squash merge |
+| PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/16> |
+| `previousSha` | `feeac51863d6d88ba83c7e16029b2911209bb0d0`，PR #15 squash，**已作废** |
+| 更早作废 | `fe1e2c2a81fd3814e8588a854695640ca56db64b`、`92826116a9b00a596ae2360d8a643d6148050e3c`、`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`、`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`、`41b7561222775e4ad00b056e2a535c7f950bcbe9`、`536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
 | 作废 | `68e062e` @ `upbeyond/openbot` |
 
-PR #15 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。对齐用的 OpenAPI 仍是 `contracts/openbot/device-digital-human.openapi.yaml` 里那份字节。消费者路径和 SSE 事件名与文件一致，`routesAligned` 为 true。这个标志只表示静态 OpenAPI 对齐，不是端到端联调通过，也不是灰度或真机通过。`npm run live-stub` 在 `OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787` 上探测根路径 `GET /healthz`，能力路径仍在 `/api/integrations/v1`。未设置该环境变量时不访问网络。数字人 GET 需要 service Basic 和 grant 凭证，未设置时跳过。B0 与 B2–B5 的本地 stand-in 处理器还在，没有改成 stub 的服务端。`fe1e2c2…` 不能再当作 `officialMergeSha`。
+PR #16 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。对齐用的 OpenAPI 仍是 `contracts/openbot/device-digital-human.openapi.yaml` 里那份字节。消费者路径和 SSE 事件名与文件一致，`routesAligned` 为 true。这个标志只表示静态 OpenAPI 对齐，不是端到端联调通过，也不是灰度或真机通过。`npm run live-stub` 在 `OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787` 上探测根路径 `GET /healthz`，能力路径仍在 `/api/integrations/v1`。未设置该环境变量时不访问网络。数字人 GET 需要 service Basic 和 grant 凭证，未设置时跳过。B0 与 B2–B5 的本地 stand-in 处理器还在，没有改成 stub 的服务端。`feeac518…` 不能再当作 `officialMergeSha`。
 
 摄像头结果 `POST /device-tool-requests/{requestId}/result` 的幂等：视觉还在进行时，同一把 `Idempotency-Key` 加同一份 body 是重复，返回处理中的接受，不再拉媒体、也不再跑视觉。不同 body 是 `IDEMPOTENCY_CONFLICT`。完成后同一把键和同一份 body 重放最终响应。重复不是 `LATE_RESULT`。视觉进行中关闭，不会被存成成功完成。
 
