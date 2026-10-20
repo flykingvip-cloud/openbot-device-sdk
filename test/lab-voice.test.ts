@@ -30,14 +30,32 @@ function plane(): ControlPlane {
   });
 }
 
-function bindDevice(control: ControlPlane): { token: string } {
+function planeClock(now: () => number): ControlPlane {
+  let refs = 0;
+  let tokens = 0;
+  return new ControlPlane({
+    now,
+    code: () => "042315",
+    authorizationRef: () => {
+      refs += 1;
+      return `aref_${refs}`;
+    },
+    token: () => {
+      tokens += 1;
+      return `ctok_${tokens}`;
+    },
+  });
+}
+
+function bindDevice(control: ControlPlane): { token: string; expiresAtMs: number } {
   control.redeemClaim("dev-voice", control.issueClaim("dev-voice").code);
   control.bind({
     deviceId: "dev-voice",
     digitalHumanId: "dh-voice",
     assistant: { voiceId: "voice-lab" },
   });
-  return { token: control.issueConnectionCredential("dev-voice").token };
+  const credential = control.issueConnectionCredential("dev-voice");
+  return { token: credential.token, expiresAtMs: credential.expiresAtMs };
 }
 
 async function readUntil(client: { nextFrame: () => Promise<WsFrame> }, accept: (frame: WsFrame) => boolean): Promise<WsFrame[]> {
@@ -122,6 +140,59 @@ test("lab voice accepts Metalio hello, hands a turn to B2, and stops TTS on abor
     assert.equal(pulled.events.length, 1);
     assert.equal(pulled.events[0]?.type, "user.turn");
     assert.equal(server.url.includes("tenclass"), false);
+    client.close();
+  } finally {
+    await server.close();
+  }
+});
+
+test("expired token is rejected on connect", async () => {
+  let now = 1_700_000_000_000;
+  const control = planeClock(() => now);
+  const { token, expiresAtMs } = bindDevice(control);
+  now = expiresAtMs;
+  const server = await startLabVoiceServer(control, { host: "127.0.0.1", port: 0 });
+  try {
+    await assert.rejects(
+      () => connectLabVoice(server.url, buildWebsocketHeaders({ deviceId: "dev-voice", clientId: "client-1", token })),
+      /401/,
+    );
+    const decision = control.assessConnectionCredential("dev-voice", token);
+    assert.equal(decision.ok, false);
+    if (!decision.ok) {
+      assert.equal(decision.code, "credential_expired");
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("mid-session expiry closes the socket and does not finish the utterance", async () => {
+  let now = 1_700_000_000_000;
+  const control = planeClock(() => now);
+  const { token, expiresAtMs } = bindDevice(control);
+  const server = await startLabVoiceServer(control, { host: "127.0.0.1", port: 0 });
+  try {
+    const client = await connectLabVoice(
+      server.url,
+      buildWebsocketHeaders({ deviceId: "dev-voice", clientId: "client-1", token }),
+    );
+    client.sendText(JSON.stringify(buildClientHello()));
+    const helloFrame = await client.nextFrame();
+    const hello = parseServerHello(JSON.parse(helloFrame.payload.toString("utf8")));
+    const sessionId = hello.sessionId ?? "";
+    assert.equal(sessionId.length > 0, true);
+    assert.equal(server.book.pull(sessionId, 0).events.some((event) => event.type === "user.turn"), false);
+
+    now = expiresAtMs;
+    client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId, text: "too-late" }));
+    const frame = await client.nextFrame();
+    assert.equal(frame.opcode, 1);
+    const body = JSON.parse(frame.payload.toString("utf8")) as { type: string; code: string };
+    assert.equal(body.type, "error");
+    assert.equal(body.code, "credential_expired");
+    assert.equal(server.book.pull(sessionId, 0).events.some((event) => event.type === "user.turn"), false);
+    assert.equal(server.book.pull(sessionId, 0).events.some((event) => event.type === "stt"), false);
     client.close();
   } finally {
     await server.close();

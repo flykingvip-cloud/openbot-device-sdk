@@ -9,6 +9,7 @@
  * The OpenAPI document from that commit is vendored at
  * `contracts/openbot/device-digital-human.openapi.yaml`.
  * Consumer paths and SSE event enums match those bytes, so `routesAligned` is true.
+ * That flag is static OpenAPI alignment, not an end-to-end OpenBot pass.
  * B0 and B2–B5 stand-in handlers are still local and do not serve that HTTP API.
  * `npm run live-stub` can call a loopback stub when OPENBOT_DEVICE_DH_STUB_URL is set.
  *
