@@ -10,11 +10,11 @@ import {
   type StagingDb,
 } from "../../services/src/index.ts";
 
-const PINNED_SHA = "41b7561222775e4ad00b056e2a535c7f950bcbe9";
+const PINNED_SHA = "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a";
 const PIN_LINE =
-  "正式针: openbot-vp main，PR #9 的 squash merge。已作废: 536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。";
+  "正式针: openbot-vp main，PR #10 的 squash merge。已作废: 41b7561222775e4ad00b056e2a535c7f950bcbe9、536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。";
 const ACCESS_LINE =
-  "OpenAPI 已按 41b7561222775e4ad00b056e2a535c7f950bcbe9 入库（更早的树拉取曾返回 404）。routesAligned 为 true。B2–B5 仍用本地 stand-in。";
+  "OpenAPI 已按 bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a 入库（更早的树拉取曾返回 404）。routesAligned 为 true。B2–B5 仍用本地 stand-in。";
 const DEVICE_ID = "dev-console";
 const DIGITAL_HUMAN_ID = "dh-console";
 const NOW = 1_700_000_000_000;

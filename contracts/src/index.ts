@@ -7,6 +7,7 @@ export {
   OPENBOT_CONTRACT_REPO,
   OPENBOT_CONTRACT_SHA,
   PREVIOUS_CONTRACT_SHA,
+  PR8_SQUASH_CONTRACT_SHA,
   PR7_SQUASH_CONTRACT_SHA,
   PR7_PREMERGE_CONTRACT_SHA,
   OLDER_CONTRACT_SHA,
@@ -41,3 +42,31 @@ export {
 export type { AssistantFields, FrozenBinding, FrozenTopLevelField, JsonValue } from "./frozen.ts";
 export { loadStandInDocument, parseStandInDocument, standInApi } from "./stand-in.ts";
 export type { StandInApi, StandInConsumerChecks, StandInDocument } from "./stand-in.ts";
+export {
+  GRANT_CREDENTIAL_HEADER,
+  STUB_AUTHORIZATION_REF_ENV,
+  STUB_BINDING_VERSION_ENV,
+  STUB_CONSENT_PASSWORD_ENV,
+  STUB_CONSENT_USER_ENV,
+  STUB_DEVICE_ID_ENV,
+  STUB_DIGITAL_HUMAN_ID_ENV,
+  STUB_GRANT_CREDENTIAL_ENV,
+  STUB_SERVICE_PASSWORD_ENV,
+  STUB_SERVICE_USER_ENV,
+  basicAuthorization,
+  consentBasicFromEnv,
+  resolveStubLocation,
+  serviceBasicFromEnv,
+  serviceGrantHeaders,
+  stubLocationFromEnv,
+} from "./stub-client.ts";
+export type { BasicClient, StubLocation } from "./stub-client.ts";
+export {
+  AGENT_SESSION_FORCE_ENV,
+  GATEWAY_AGENT_ID_ENV,
+  agentSessionForceEnabled,
+  deviceAgentSessionKey,
+  gatewayAgentIdFromEnv,
+  resolveAgentSession,
+} from "./agent-session.ts";
+export type { AgentSession } from "./agent-session.ts";

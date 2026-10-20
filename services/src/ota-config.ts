@@ -1,6 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { INTEGRATIONS_API_PREFIX, OPENBOT_CONTRACT_SHA } from "../../contracts/src/index.ts";
+import {
+  INTEGRATIONS_API_PREFIX,
+  OPENBOT_CONTRACT_SHA,
+  agentSessionForceEnabled,
+  gatewayAgentIdFromEnv,
+} from "../../contracts/src/index.ts";
 import { ControlPlane } from "./control-plane.ts";
 
 /** Placeholder used until a lab voice server is advertised. Not api.tenclass.net. */
@@ -23,6 +28,10 @@ export interface LabDeviceConfig {
   bindingVersion: number | null;
   authorizationRef: string | null;
   digitalHumanId: string | null;
+  /** Present on every config. Null until OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID is set. */
+  gatewayAgentId: string | null;
+  /** True only when OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE is exactly `1`. */
+  agentSessionForce: boolean;
   token: string | null;
   tokenExpiresAtMs: number | null;
   firmwareUrl: null;
@@ -68,6 +77,7 @@ export function buildLabDeviceConfig(
   if (!DEVICE_ID.test(deviceId)) {
     throw new Error("deviceId is required");
   }
+  const env = options.env ?? process.env;
   const claimStatus = plane.claimStatus(deviceId);
   const binding = plane.getBinding(deviceId);
   const revoked = plane.isRevoked(deviceId);
@@ -84,12 +94,14 @@ export function buildLabDeviceConfig(
     deviceId,
     claimStatus,
     revoked,
-    voiceWssUrl: resolveLabVoiceWssUrl(options.env ?? process.env, options.voiceWssUrl),
+    voiceWssUrl: resolveLabVoiceWssUrl(env, options.voiceWssUrl),
     deviceApiUrl: `${origin.replace(/\/$/, "")}${INTEGRATIONS_API_PREFIX}`,
     apiPrefix: INTEGRATIONS_API_PREFIX,
     bindingVersion: binding?.bindingVersion ?? null,
     authorizationRef: binding?.authorizationRef ?? null,
     digitalHumanId: binding?.digitalHumanId ?? null,
+    gatewayAgentId: gatewayAgentIdFromEnv(env),
+    agentSessionForce: agentSessionForceEnabled(env),
     token,
     tokenExpiresAtMs,
     firmwareUrl: null,

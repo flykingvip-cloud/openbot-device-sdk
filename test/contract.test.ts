@@ -19,32 +19,37 @@ import {
   OPENBOT_CONTRACT_SHA,
   PR7_PREMERGE_CONTRACT_SHA,
   PR7_SQUASH_CONTRACT_SHA,
+  PR8_SQUASH_CONTRACT_SHA,
   PREVIOUS_CONTRACT_SHA,
   RUN_EVENT_TYPES,
   STUB_SERVER_URL,
   alignConsumerRoutes,
+  deviceAgentSessionKey,
   digitalHumanProfileUrl,
   loadStandInDocument,
   parseStandInDocument,
+  resolveAgentSession,
 } from "../contracts/src/index.ts";
 
 test("OPENBOT_CONTRACT_SHA file matches the pin", () => {
   const file = readFileSync(new URL("../contracts/OPENBOT_CONTRACT_SHA", import.meta.url), "utf8").trim();
   assert.equal(file, OPENBOT_CONTRACT_SHA);
-  assert.equal(file, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
+  assert.equal(file, "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a");
   assert.equal(OPENBOT_CONTRACT_REPO, "https://github.com/flykingvip-cloud/openbot-vp");
-  assert.equal(OPENBOT_CONTRACT_PR, "https://github.com/flykingvip-cloud/openbot-vp/pull/9");
+  assert.equal(OPENBOT_CONTRACT_PR, "https://github.com/flykingvip-cloud/openbot-vp/pull/10");
   assert.equal(CONTRACT_PIN.status, "main");
   assert.equal(CONTRACT_PIN.merge, "squash");
   assert.equal(CONTRACT_PIN.officialMergeSha, OPENBOT_CONTRACT_SHA);
   assert.equal(CONTRACT_PIN.previousSha, PREVIOUS_CONTRACT_SHA);
   assert.equal(CONTRACT_PIN.previousShaStatus, "invalidated");
-  assert.equal(PREVIOUS_CONTRACT_SHA, "536a963b119f0a00675516401c52dd0f6187b196");
+  assert.equal(PREVIOUS_CONTRACT_SHA, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
+  assert.equal(PR8_SQUASH_CONTRACT_SHA, "536a963b119f0a00675516401c52dd0f6187b196");
   assert.equal(PR7_SQUASH_CONTRACT_SHA, "8abdc7f9a0ae49c340de712fbba235b1064f6c7d");
   assert.equal(PR7_PREMERGE_CONTRACT_SHA, "554910d835f3baadb1d753532ad510b1b477be09");
   assert.equal(OLDER_CONTRACT_SHA, "dd6c85cae086d90c519ff1be7ad08e20d4644bba");
   assert.deepEqual(INVALIDATED_CONTRACT_SHAS, [
     PREVIOUS_CONTRACT_SHA,
+    PR8_SQUASH_CONTRACT_SHA,
     PR7_SQUASH_CONTRACT_SHA,
     PR7_PREMERGE_CONTRACT_SHA,
     OLDER_CONTRACT_SHA,
@@ -65,11 +70,13 @@ test("B0-B5 stand-in stays local and does not flash", () => {
   assert.equal(doc.contract.deviceApisPresent, "reported-stub");
   assert.equal(doc.contract.routesAligned, true);
   assert.equal(doc.contract.access, "vendored");
-  assert.equal(doc.contract.officialMergeSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
+  assert.equal(doc.contract.officialMergeSha, "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a");
+  assert.notEqual(doc.contract.officialMergeSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
   assert.notEqual(doc.contract.officialMergeSha, "536a963b119f0a00675516401c52dd0f6187b196");
   assert.equal(doc.contract.previousSha, PREVIOUS_CONTRACT_SHA);
   assert.equal(doc.contract.previousShaStatus, "invalidated");
   assert.deepEqual(doc.contract.invalidatedShas, [
+    "41b7561222775e4ad00b056e2a535c7f950bcbe9",
     "536a963b119f0a00675516401c52dd0f6187b196",
     "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
     "554910d835f3baadb1d753532ad510b1b477be09",
@@ -105,6 +112,9 @@ test("stand-in rejects a pin that hides the vendored OpenAPI", () => {
   assert.throws(() => parseStandInDocument(doc), /vendored OpenAPI/);
   doc.contract.routesAligned = true;
   doc.contract.sha = PREVIOUS_CONTRACT_SHA;
+  assert.throws(() => parseStandInDocument(doc), /not pinned/);
+  doc.contract.routesAligned = true;
+  doc.contract.sha = PR8_SQUASH_CONTRACT_SHA;
   assert.throws(() => parseStandInDocument(doc), /not pinned/);
   doc.contract.sha = PR7_SQUASH_CONTRACT_SHA;
   assert.throws(() => parseStandInDocument(doc), /not pinned/);
@@ -168,4 +178,31 @@ test("vendored OpenAPI matches consumer paths and SSE event enums", () => {
     "binding.updated",
   ]);
   assert.equal(IMPLEMENTATION_GAPS.length > 0, true);
+});
+
+test("agent session key stays on device-dh unless force is exactly 1", () => {
+  assert.equal(deviceAgentSessionKey("dh-1", "conv-9"), "device-dh:dh-1:conv-9");
+  const kept = resolveAgentSession({
+    digitalHumanId: "dh-1",
+    conversationId: "conv-9",
+    gatewayAgentId: "agent-lab",
+    uiSessionKey: "ui-session",
+    env: { OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE: "true" },
+  });
+  assert.equal(kept.sessionKey, "device-dh:dh-1:conv-9");
+  assert.equal(kept.forced, false);
+  assert.equal(kept.gatewayAgentId, "agent-lab");
+  const forced = resolveAgentSession({
+    digitalHumanId: "dh-1",
+    conversationId: "conv-9",
+    gatewayAgentId: "agent-lab",
+    uiSessionKey: "ui-session",
+    env: { OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE: "1" },
+  });
+  assert.equal(forced.sessionKey, "ui-session");
+  assert.equal(forced.forced, true);
+  assert.throws(
+    () => resolveAgentSession({ digitalHumanId: "dh-1", conversationId: "conv-9", gatewayAgentId: "" }),
+    /gatewayAgentId is required/,
+  );
 });
