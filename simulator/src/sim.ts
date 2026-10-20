@@ -45,7 +45,7 @@ export interface SimulatorReport {
   reloadedRevoked: boolean;
   reloadedLateCameraCode: string;
   reloadedCursorExpired: boolean;
-  reloadedSessionBusy: boolean;
+  reloadedSessionClosed: boolean;
 }
 
 export async function runSimulator(statePath: string): Promise<SimulatorReport> {
@@ -215,7 +215,7 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
   let reloadedRevoked = false;
   let reloadedLateCameraCode = "";
   let reloadedCursorExpired = false;
-  let reloadedSessionBusy = false;
+  let reloadedSessionClosed = false;
   let reloadedAssistant = false;
   await withDb(statePath, (db) => {
     const plane = new ControlPlane({ store: db, now: clock });
@@ -233,17 +233,16 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
     );
     reloadedCursorExpired = catchCode(() => book.pull(sessionId, 0)) === "CURSOR_EXPIRED";
     if (binding) {
-      try {
-        book.open({
-          authorizationRef: binding.authorizationRef,
-          bindingVersion: binding.bindingVersion,
-          digitalHumanId: binding.digitalHumanId,
-          deviceId: binding.deviceId,
-          idempotencyKey: "sim-after-restart",
-        });
-      } catch (error) {
-        reloadedSessionBusy = error instanceof SessionError && error.code === "SESSION_BUSY";
-      }
+      reloadedSessionClosed =
+        catchCode(() =>
+          book.open({
+            authorizationRef: binding.authorizationRef,
+            bindingVersion: binding.bindingVersion,
+            digitalHumanId: binding.digitalHumanId,
+            deviceId: binding.deviceId,
+            idempotencyKey: "sim-after-restart",
+          }),
+        ) === "SESSION_CLOSED";
     }
     const ota = plane.getLabOta(DEVICE_ID);
     if (!ota || ota.executable !== false || ota.firmwareUrl !== null) {
@@ -251,7 +250,7 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
     }
     say(lines, "再次打开状态文件");
     say(lines, `  revoked=${reloadedRevoked} 迟到摄像头=${reloadedLateCameraCode}`);
-    say(lines, `  CURSOR_EXPIRED=${reloadedCursorExpired} SESSION_BUSY=${reloadedSessionBusy}`);
+    say(lines, `  CURSOR_EXPIRED=${reloadedCursorExpired} SESSION_CLOSED=${reloadedSessionClosed}`);
     say(lines, `  assistant 保持=${reloadedAssistant} ota executable=${ota.executable}`);
   });
 
@@ -261,8 +260,8 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
   if (!idempotentSession || !sessionBusy || !duplicateEventIgnored || !duplicateSurvivedRestart) {
     throw new Error("B2 stand-in did not keep idempotency, SESSION_BUSY, or eventId dedupe");
   }
-  if (!cursorExpired || !reloadedCursorExpired || !reloadedSessionBusy) {
-    throw new Error("cursor expiry or SESSION_BUSY did not survive restart");
+  if (!cursorExpired || !reloadedCursorExpired || !reloadedSessionClosed) {
+    throw new Error("cursor expiry did not stay closed across restart");
   }
   if (!visibleTtsExcludesSecret || visibleTtsText !== VISIBLE) {
     throw new Error("TTS was not limited to assistant.visible.speech");
@@ -297,7 +296,7 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
     reloadedRevoked,
     reloadedLateCameraCode,
     reloadedCursorExpired,
-    reloadedSessionBusy,
+    reloadedSessionClosed,
   };
 }
 

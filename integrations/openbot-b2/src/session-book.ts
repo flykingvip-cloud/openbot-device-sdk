@@ -19,7 +19,9 @@ const STATE_VERSION = 1;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_.:-]{1,128}$/;
 const EVENT_TYPE = /^[A-Za-z0-9._-]{1,64}$/;
 
-export type SessionErrorCode = "SESSION_BUSY" | "CURSOR_EXPIRED" | "SESSION_NOT_FOUND";
+export type SessionErrorCode = "SESSION_BUSY" | "CURSOR_EXPIRED" | "SESSION_NOT_FOUND" | "SESSION_CLOSED";
+
+export type SessionCloseReason = "revoked" | "rebound" | "closed" | "expired";
 
 export class SessionError extends Error {
   readonly code: SessionErrorCode;
@@ -94,6 +96,8 @@ interface PersistedSession {
   openedAtMs: number;
   cursorExpiresAtMs: number;
   nextCursor: number;
+  status: "open" | "closed";
+  closeReason: SessionCloseReason | null;
 }
 
 interface SessionSection {
@@ -129,17 +133,61 @@ export class SessionBook {
     if (this.store) {
       this.hydrate();
     }
+    this.plane.attachSessionLifecycle(this);
   }
 
   useClock(now: () => number): void {
     this.now = now;
   }
 
+  /**
+   * Closes one session. A later append or pull does not enter this run.
+   * Closing an already closed session is a no-op.
+   */
+  release(sessionId: string): { sessionId: string; released: true } {
+    this.invalidate(sessionId);
+    return { sessionId, released: true };
+  }
+
+  /** Force-closes one session. Revoke, rebind, expiry, and `release` all end here. */
+  invalidate(sessionId: string): { sessionId: string; invalidated: true } {
+    const session = this.requireSession(sessionId);
+    if (session.status !== "closed") {
+      this.closeSession(session, "closed");
+      this.persist();
+    }
+    return { sessionId, invalidated: true };
+  }
+
+  /**
+   * Closes every still-open session for the device.
+   * `ControlPlane.revoke` and `rebind` call this so the old run cannot accept late events.
+   */
+  invalidateDevice(deviceId: string, reason: "revoked" | "rebound"): number {
+    let closed = 0;
+    for (const session of this.sessions.values()) {
+      if (session.deviceId === deviceId && session.status !== "closed") {
+        this.closeSession(session, reason);
+        closed += 1;
+      }
+    }
+    if (closed > 0) {
+      this.persist();
+    }
+    return closed;
+  }
+
   open(request: SessionRequest): DeviceSession {
     assertNoFrozenAliases(request);
     const idempotencyKey = normalizeIdempotencyKey(request.idempotencyKey);
     const binding = this.requireMatchingBinding(request);
-    const active = [...this.sessions.values()].find((session) => session.deviceId === request.deviceId);
+    this.sweepDevice(request.deviceId);
+    if (this.plane.isRevoked(request.deviceId)) {
+      throw new SessionError("SESSION_CLOSED", "device is revoked");
+    }
+    const active = [...this.sessions.values()].find(
+      (session) => session.deviceId === request.deviceId && session.status !== "closed",
+    );
     if (active) {
       if (
         idempotencyKey !== null &&
@@ -172,6 +220,8 @@ export class SessionBook {
       openedAtMs: now,
       cursorExpiresAtMs: now + this.cursorTtlMs,
       nextCursor: 1,
+      status: "open",
+      closeReason: null,
     };
     this.sessions.set(sessionId, session);
     this.persist();
@@ -180,7 +230,7 @@ export class SessionBook {
 
   append(sessionId: string, event: SessionEventInput): AppendSessionEventResult {
     const session = this.requireSession(sessionId);
-    this.assertCursorLive(session);
+    this.assertUsable(session);
     if (!IDEMPOTENCY_KEY.test(event.eventId)) {
       throw new Error("eventId must match [A-Za-z0-9_.:-]{1,128}");
     }
@@ -208,7 +258,7 @@ export class SessionBook {
     if (!Number.isInteger(afterCursor) || afterCursor < 0) {
       throw new Error("cursor must be a non-negative integer");
     }
-    this.assertCursorLive(session);
+    this.assertUsable(session);
     const events = this.events
       .filter((event) => event.sessionId === sessionId && event.cursor > afterCursor)
       .sort((left, right) => left.cursor - right.cursor)
@@ -240,10 +290,63 @@ export class SessionBook {
     return session;
   }
 
-  private assertCursorLive(session: PersistedSession): void {
+  private sweepDevice(deviceId: string): void {
+    for (const session of [...this.sessions.values()]) {
+      if (session.deviceId !== deviceId || session.status === "closed") {
+        continue;
+      }
+      try {
+        this.assertUsable(session);
+      } catch (error) {
+        if (!(error instanceof SessionError)) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  /**
+   * Resume, append, and pull all come through here.
+   * A revoked device, a newer binding, an explicit close, or an expired cursor
+   * closes the session before any new event is accepted.
+   */
+  private assertUsable(session: PersistedSession): void {
+    if (session.status === "closed") {
+      this.throwClosed(session);
+    }
+    if (this.plane.isRevoked(session.deviceId)) {
+      this.closeSession(session, "revoked");
+      this.persist();
+      throw new SessionError("SESSION_CLOSED", "device is revoked");
+    }
+    const binding = this.plane.getBinding(session.deviceId);
+    if (
+      !binding ||
+      binding.authorizationRef !== session.binding.authorizationRef ||
+      binding.bindingVersion !== session.binding.bindingVersion ||
+      binding.deviceId !== session.deviceId
+    ) {
+      this.closeSession(session, "rebound");
+      this.persist();
+      throw new SessionError("SESSION_CLOSED", "session binding is no longer current");
+    }
     if (this.now() >= session.cursorExpiresAtMs) {
+      this.closeSession(session, "expired");
+      this.persist();
       throw new SessionError("CURSOR_EXPIRED", "session event cursor expired");
     }
+  }
+
+  private closeSession(session: PersistedSession, reason: SessionCloseReason): void {
+    session.status = "closed";
+    session.closeReason = reason;
+  }
+
+  private throwClosed(session: PersistedSession): never {
+    if (session.closeReason === "expired") {
+      throw new SessionError("CURSOR_EXPIRED", "session event cursor expired");
+    }
+    throw new SessionError("SESSION_CLOSED", "session is closed");
   }
 
   private toDeviceSession(session: PersistedSession): DeviceSession {
@@ -282,6 +385,25 @@ export class SessionBook {
     };
     this.store.set(STAGING_SESSION_SECTION, section);
   }
+}
+
+function parseLifecycle(
+  status: unknown,
+  closeReason: unknown,
+): { status: "open" | "closed"; closeReason: SessionCloseReason | null } {
+  if (status === undefined || status === "open") {
+    if (closeReason !== undefined && closeReason !== null) {
+      throw new Error("session state corrupt");
+    }
+    return { status: "open", closeReason: null };
+  }
+  if (status !== "closed") {
+    throw new Error("session state corrupt");
+  }
+  if (closeReason !== "revoked" && closeReason !== "rebound" && closeReason !== "closed" && closeReason !== "expired") {
+    throw new Error("session state corrupt");
+  }
+  return { status: "closed", closeReason };
 }
 
 function normalizeIdempotencyKey(value: string | undefined): string | null {
@@ -354,7 +476,11 @@ function parseSessionSection(raw: unknown): SessionSection {
       throw new Error("session state corrupt");
     }
     assertSessionId(sessionId);
-    if (typeof deviceId !== "string" || deviceId !== binding.deviceId || seenDevice.has(deviceId)) {
+    const lifecycle = parseLifecycle(item.status, item.closeReason);
+    if (typeof deviceId !== "string" || deviceId !== binding.deviceId) {
+      throw new Error("session state corrupt");
+    }
+    if (lifecycle.status === "open" && seenDevice.has(deviceId)) {
       throw new Error("session state corrupt");
     }
     let key: string | null;
@@ -377,7 +503,9 @@ function parseSessionSection(raw: unknown): SessionSection {
       throw new Error("session state corrupt");
     }
     seenSession.add(sessionId);
-    seenDevice.add(deviceId);
+    if (lifecycle.status === "open") {
+      seenDevice.add(deviceId);
+    }
     sessions.push({
       sessionId,
       deviceId,
@@ -386,6 +514,8 @@ function parseSessionSection(raw: unknown): SessionSection {
       openedAtMs,
       cursorExpiresAtMs,
       nextCursor,
+      status: lifecycle.status,
+      closeReason: lifecycle.closeReason,
     });
   }
   const events: SessionEvent[] = [];
