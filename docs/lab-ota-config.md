@@ -32,7 +32,7 @@ npm run ota-config -- --help
 
 ## 公开配置字段
 
-- `contractSha`：`490a69669c0cf9e68173ceb25cfa89c99438dfb9`
+- `contractSha`：`d7f0e1d834dc9ccece6723f6d71dea8fa0cfcb1f`
 - `routesAligned`：true。这只表示已入库 OpenAPI 的路径和 SSE 事件名与消费者镜像静态一致。它不是端到端联调通过，也不是灰度或真机通过。B2–B5 仍是本地 stand-in。
 - `voiceWssUrl`：默认 `wss://lab.invalid/voice`。设置 `OPENBOT_LAB_VOICE_WSS_URL` 为本机 `ws://127.0.0.1:<port>` 后，改用实验语音。不是生产 ASR/TTS，也不是 `api.tenclass.net`
 - `devicePlatformUrl`：本进程的 origin，例如 `http://127.0.0.1:8790`
