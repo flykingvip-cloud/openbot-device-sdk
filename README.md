@@ -42,7 +42,7 @@ PR #17 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。�
 | `services/` | 认领、绑定、实验 OTA 记录、实验配置 HTTP、设备控制 HTTP；可选的文件 / sqlite 状态 |
 | `console/` | 认领、绑定、OTA、refresh、吊销的实验控制台 |
 | `simulator/` | 无真机的 B1–B3 stand-in 与重连模拟 |
-| `docs/` | A0 笔记、A2、A4、A5、B1–B3、工程清单 |
+| `docs/` | A0 笔记、A2、A4、A5、B1–B3、设备控制 v1、联合验收、工程清单 |
 
 ## 语音与媒体
 
@@ -73,6 +73,7 @@ npm run console
 npm run sim
 npm run ota-config -- --help
 npm run device-control -- --help
+npm run sim-joint -- --help
 npm run voice -- --help
 npm run live-stub -- --help
 ```
@@ -85,13 +86,13 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 ```
 
-步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。
+步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。
 
 ## Agent A 验收还差什么
 
 这一段仍是协议 / 模拟脚手架。A0–A5 没有灰度完成，本仓库也不烧录板子。
 
-- 真实 Opus、ASR、TTS。现在只有 `OB-OPUS-PLACEHOLDER`，没有 libopus，打断残留仍是 2400 ms。本地模拟要 `OPENBOT_DEVICE_DH_TEST_MODE=1`。配了 loopback stub 时只播 `assistant.visible` / `assistant.final`，那仍不是灰度或端到端通过。设备控制 HTTP 草稿在 `/api/device-platform/v1`，给 Agent B 冻结字段，不是灰度，也不是真机交付。配对挑战不属于 OpenBot 契约，见 [docs/device-platform.md](docs/device-platform.md) 和 [docs/device-control-api.md](docs/device-control-api.md)。
+- 真实 Opus、ASR、TTS。现在只有 `OB-OPUS-PLACEHOLDER`，没有 libopus，打断残留仍是 2400 ms。本地模拟要 `OPENBOT_DEVICE_DH_TEST_MODE=1`。配了 loopback stub 时只播 `assistant.visible` / `assistant.final`，那仍不是灰度或端到端通过。设备控制 HTTP 已冻结为 v1，前缀 `/api/device-platform/v1`，`maturity` 为 `v1-frozen`。不是灰度，也不是真机交付。配对挑战不属于 OpenBot 契约，见 [docs/device-platform.md](docs/device-platform.md) 和 [docs/device-control-api.md](docs/device-control-api.md)。联合验收仍把 UI、staging、真机和生产标成 `JOINT_PENDING`，见 [docs/integration/joint-acceptance.md](docs/integration/joint-acceptance.md)。
 - Metalio 固件补丁，以及工程机上的编译证据。基线 SHA 仍是 `ca3aa3fa027ff7dad2adf0c2d03c4f24aa838950`，本环境没有 ESP-IDF 编译。
 - 生产级设备身份。认领码、短时 token 和 stub Basic 都是实验用的，不是量产身份。
 - 真实 OV2710 采集。实验摄像头只用 1×1 PNG/JPEG 夹具。
@@ -109,6 +110,8 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 - [docs/live-stub.md](docs/live-stub.md)
 - [docs/device-platform.md](docs/device-platform.md)
 - [docs/device-control-api.md](docs/device-control-api.md)
+- [docs/integration/joint-acceptance.md](docs/integration/joint-acceptance.md)
+- [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)
 - [docs/a5-console-sim.md](docs/a5-console-sim.md)
 - [docs/integration/b1.md](docs/integration/b1.md)
 - [docs/integration/b2.md](docs/integration/b2.md)

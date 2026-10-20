@@ -4,7 +4,7 @@
 
 这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/17> squash merge 到 `main` 之后的正式提交。冻结字段名和能力路由前缀 `/api/integrations/v1` 没有改。对齐用的 OpenAPI 仍是 `contracts/openbot/device-digital-human.openapi.yaml` 里已入库的字节。消费者路径和 SSE 事件名与文件一致，所以 `routesAligned=true`。这只是静态对齐，不是端到端联调通过。B2–B5 仍是本地 stand-in。
 
-设备控制面的草稿 OpenAPI 在 `contracts/device-platform/device-control.openapi.yaml`。前缀是 `/api/device-platform/v1`。它不是这份冻结契约。
+设备控制面 OpenAPI 在 `contracts/device-platform/device-control.openapi.yaml`，已冻结为 `info.version: v1`，运行时 `maturity` 为 `v1-frozen`。前缀是 `/api/device-platform/v1`。它不是上面这份 OpenBot `/api/integrations/v1` 契约，字段也不写进那份 OpenAPI。`OPENBOT_CONTRACT_SHA` 不因这次冻结而改。
 
 `previousSha` = `490a69669c0cf9e68173ceb25cfa89c99438dfb9`，状态 `invalidated`。那是 PR #16 的 squash merge，不能再当作 `officialMergeSha`。
 

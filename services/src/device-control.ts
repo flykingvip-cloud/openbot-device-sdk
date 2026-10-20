@@ -48,8 +48,8 @@ export interface DeviceControlHealth {
   ok: true;
   service: "device-control";
   apiPrefix: typeof DEVICE_CONTROL_API_PREFIX;
-  /** Freeze candidate for Agent B. This is not a gray release and not real-device delivery. */
-  maturity: "agent-b-freeze-draft";
+  /** Frozen v1 marker for the joint Agent B / OpenBot UI contract. Not gray release and not real-device delivery. */
+  maturity: "v1-frozen";
   grayRelease: false;
   realDeviceDelivery: false;
   firmwareUrl: null;
@@ -127,7 +127,7 @@ export function deviceControlHealth(): DeviceControlHealth {
     ok: true,
     service: "device-control",
     apiPrefix: DEVICE_CONTROL_API_PREFIX,
-    maturity: "agent-b-freeze-draft",
+    maturity: "v1-frozen",
     grayRelease: false,
     realDeviceDelivery: false,
     firmwareUrl: null,

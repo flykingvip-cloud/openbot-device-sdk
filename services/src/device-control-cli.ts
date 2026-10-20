@@ -21,9 +21,9 @@ function main(): void {
     .then((listening) => {
       process.stdout.write(
         [
-          `设备控制草稿: ${listening.url}/api/device-platform/v1`,
+          `设备控制 v1: ${listening.url}/api/device-platform/v1`,
           `状态: ${args.statePath}`,
-          "这是给 Agent B 冻结的草稿，不是灰度，也不是真机交付",
+          "这是已冻结的 v1 联合契约（maturity: v1-frozen），不是灰度，也不是真机交付",
           "只接受 service Basic。浏览器声明的 userId / tenantId / digitalHumanId 不会被采信",
           "配对挑战只在本前缀。不要把 pairChallenge / pairingCode 放进 /api/integrations/v1",
           "apply bind 只接受 OpenBot exchange 之后的 authorizationRef，本进程不铸造该字段",
@@ -99,7 +99,7 @@ function helpText(): string {
     "  绑定和状态同步还要能读到 OpenBot grant（OPENBOT_DEVICE_DH_STUB_URL）",
     "  默认状态文件 var/device-control.sqlite（已 gitignore）。以 .json 结尾时用 JSON",
     "  只绑定 loopback。flash 与 massFlash 不执行",
-    "  这份草稿给 Agent B 冻结字段，不是灰度，也不是真机交付",
+    "  这是已冻结的 v1 联合契约（maturity: v1-frozen），不是灰度，也不是真机交付",
   ].join("\n");
 }
 

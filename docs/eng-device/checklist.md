@@ -46,7 +46,9 @@
 - [ ] 实验 OTA 记录和配置 HTTP 的 `firmwareUrl` 仍是 null，`force` 仍是 0
 - [ ] 设备固件烧录仍未实现
 - [ ] `npm run ota-config` 的公开配置只有非敏感 URL 和配对提示；token 只在核验设备身份后签发；进程不广告 grants / conversations / runs；默认只绑 loopback
-- [ ] `/api/device-platform/v1` 是给 Agent B 冻结的设备控制草稿，不是灰度，也不是真机交付；`pairChallenge` / `pairingCode` 不进入 `/api/integrations/v1`；`flash()` 与 `massFlash()` 仍然失败
+- [ ] `/api/device-platform/v1` 已冻结为 v1（`info.version: v1`，`maturity: v1-frozen`）。字段名未改。不是灰度，也不是真机交付；`pairChallenge` / `pairingCode` 不进入 `/api/integrations/v1`；`flash()` 与 `massFlash()` 仍然失败
+- [ ] [docs/integration/joint-acceptance.md](../integration/joint-acceptance.md) 把 code-check、sim、staging、real-device、production 分开，也把管理页面、服务接口、设备生效分开。UI、staging、真机、生产仍是 `JOINT_PENDING`
+- [ ] [docs/integration/sim-joint-loopback.md](../integration/sim-joint-loopback.md) 的每一项都是 sim / API-only。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过
 - [ ] 拒绝量产、批量、fleet，以及十班和 C5 托管包主机
 - [ ] `npm test` 与 `npm run typecheck` 为绿
 
