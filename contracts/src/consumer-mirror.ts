@@ -29,7 +29,7 @@ export const OPENAPI_FETCH = {
 export const IMPLEMENTATION_GAPS = [
   "B0 and B2-B5 stand-in handlers remain when the live connector is off. Local sim speech requires OPENBOT_DEVICE_DH_TEST_MODE=1. Those handlers do not serve the vendored grants, conversations, runs, or media routes",
   "The connector can call consent, exchange, rebind, revoke, conversations, turns, run SSE, device events, and tool results on a loopback stub. This repository does not emit those events. routesAligned is static OpenAPI alignment, not an end-to-end pass",
-  "Device-platform pair challenge and the OpenBot UI device-control API are not OpenBot contract fields. There is no client registry HTTP API; stub config is clients[] and digitalHumans[] only",
+  "Device-platform pair challenge and the OpenBot UI device-control API are served at /api/device-platform/v1. They are not OpenBot contract fields and must not be sent to /api/integrations/v1. There is no client registry HTTP API; stub config is clients[] and digitalHumans[] only",
 ] as const;
 
 export interface ConsumerRoute {

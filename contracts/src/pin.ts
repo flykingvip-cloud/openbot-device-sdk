@@ -1,22 +1,22 @@
 /**
  * Contract pin for Agent A.
  *
- * `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` is the squash merge of
- * https://github.com/flykingvip-cloud/openbot-vp/pull/11 on `main`
- * (in-flight tool-result idempotency during vision: same key and body is a
- * duplicate, a different body is IDEMPOTENCY_CONFLICT, and a completed call
- * replays the final response).
+ * `92826116a9b00a596ae2360d8a643d6148050e3c` is the squash merge of
+ * https://github.com/flykingvip-cloud/openbot-vp/pull/12 on `main`.
  * Frozen field names and the `/api/integrations/v1` prefix are unchanged.
+ * The vendored OpenAPI bytes stay the PR #11 document because that surface
+ * did not change; consumer paths and SSE event enums still match, so
+ * `routesAligned` is true. That flag is static OpenAPI alignment, not an
+ * end-to-end OpenBot pass.
  *
- * The OpenAPI document from that commit is vendored at
+ * The OpenAPI document used for alignment is vendored at
  * `contracts/openbot/device-digital-human.openapi.yaml`.
- * Consumer paths and SSE event enums match those bytes, so `routesAligned` is true.
- * That flag is static OpenAPI alignment, not an end-to-end OpenBot pass.
  * B0 and B2–B5 stand-in handlers are still local and do not serve that HTTP API.
  * `npm run live-stub` can call a loopback stub when OPENBOT_DEVICE_DH_STUB_URL is set.
  *
  * Invalidated and must not be used as the pin:
- * - `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` (PR #10 squash; immediate predecessor)
+ * - `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` (PR #11 squash; immediate predecessor)
+ * - `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` (PR #10 squash)
  * - `41b7561222775e4ad00b056e2a535c7f950bcbe9` (PR #9 squash)
  * - `536a963b119f0a00675516401c52dd0f6187b196` (PR #8 squash)
  * - `8abdc7f9a0ae49c340de712fbba235b1064f6c7d` (PR #7 squash)
@@ -25,14 +25,19 @@
  *
  * The short pin `68e062e` on `upbeyond/openbot` is obsolete and must not be read.
  */
-export const OPENBOT_CONTRACT_SHA = "d22db4755311a1a0df9fb5e3d5da60554f8ef6a5";
+export const OPENBOT_CONTRACT_SHA = "92826116a9b00a596ae2360d8a643d6148050e3c";
 
 export const OPENBOT_CONTRACT_REPO = "https://github.com/flykingvip-cloud/openbot-vp";
 
-export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/11";
+export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/12";
 
-/** Immediate predecessor. Invalidated: PR #10 squash, replaced by PR #11. */
-export const PREVIOUS_CONTRACT_SHA = "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a";
+/** Immediate predecessor. Invalidated: PR #11 squash, replaced by PR #12. */
+export const PR11_SQUASH_CONTRACT_SHA = "d22db4755311a1a0df9fb5e3d5da60554f8ef6a5";
+
+export const PREVIOUS_CONTRACT_SHA = PR11_SQUASH_CONTRACT_SHA;
+
+/** PR #10 squash. Also invalidated. */
+export const PR10_SQUASH_CONTRACT_SHA = "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a";
 
 /** PR #9 squash. Also invalidated. */
 export const PR9_SQUASH_CONTRACT_SHA = "41b7561222775e4ad00b056e2a535c7f950bcbe9";
@@ -51,6 +56,7 @@ export const OLDER_CONTRACT_SHA = "dd6c85cae086d90c519ff1be7ad08e20d4644bba";
 
 export const INVALIDATED_CONTRACT_SHAS = [
   PREVIOUS_CONTRACT_SHA,
+  PR10_SQUASH_CONTRACT_SHA,
   PR9_SQUASH_CONTRACT_SHA,
   PR8_SQUASH_CONTRACT_SHA,
   PR7_SQUASH_CONTRACT_SHA,

@@ -10,7 +10,7 @@ import {
 import { speakVisibleAssistant } from "../../integrations/openbot-b3/src/index.ts";
 import { ControlPlane, ControlPlaneError, openStaging, type StagingDb } from "../../services/src/index.ts";
 
-const PINNED_SHA = "d22db4755311a1a0df9fb5e3d5da60554f8ef6a5";
+const PINNED_SHA = "92826116a9b00a596ae2360d8a643d6148050e3c";
 const DEVICE_ID = "dev-sim";
 const DIGITAL_HUMAN_ID = "dh-sim";
 const SECRET = "do-not-speak-secret";
@@ -72,8 +72,8 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
   say(lines, "设备模拟器（无真机、无网络、无烧录）");
   say(lines, `状态: ${statePath}`);
   say(lines, `合约针: ${OPENBOT_CONTRACT_SHA}`);
-  say(lines, "正式针: openbot-vp main，PR #11 的 squash merge。已作废: bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a、41b7561222775e4ad00b056e2a535c7f950bcbe9、536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。");
-  say(lines, "OpenAPI 已按 d22db4755311a1a0df9fb5e3d5da60554f8ef6a5 入库（更早的树拉取曾返回 404）。routesAligned 为 true，只表示静态 OpenAPI 对齐，不是端到端联调。B2–B5 仍用本地 stand-in。");
+  say(lines, "正式针: openbot-vp main，PR #12 的 squash merge。已作废: d22db4755311a1a0df9fb5e3d5da60554f8ef6a5、bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a、41b7561222775e4ad00b056e2a535c7f950bcbe9、536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。");
+  say(lines, "OpenAPI 路径仍按冻结前缀对齐。针是 92826116a9b00a596ae2360d8a643d6148050e3c。字段名未改，入库字节不换（更早的树拉取曾返回 404）。routesAligned 为 true，只表示静态 OpenAPI 对齐，不是端到端联调。B2–B5 仍用本地 stand-in。");
 
   let sessionId = "";
   let b1Idempotent = false;
