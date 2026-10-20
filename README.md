@@ -80,6 +80,7 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 - [docs/a4-claim-bind-ota.md](docs/a4-claim-bind-ota.md)
 - [docs/lab-ota-config.md](docs/lab-ota-config.md)
 - [docs/lab-voice.md](docs/lab-voice.md)
+- [docs/lab-camera.md](docs/lab-camera.md)
 - [docs/a5-console-sim.md](docs/a5-console-sim.md)
 - [docs/integration/b1.md](docs/integration/b1.md)
 - [docs/integration/b2.md](docs/integration/b2.md)
