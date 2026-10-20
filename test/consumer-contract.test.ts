@@ -45,7 +45,9 @@ test("b1 idempotent read keeps the first assistant profile", async () => {
 
 test("b1 live stub idempotency does not refetch", async () => {
   let calls = 0;
-  const fetchImpl: typeof fetch = async () => {
+  let seen = "";
+  const fetchImpl: typeof fetch = async (input) => {
+    seen = String(input);
     calls += 1;
     return new Response(
       JSON.stringify({
@@ -60,6 +62,7 @@ test("b1 live stub idempotency does not refetch", async () => {
   const first = await readDigitalHuman("dh", { env, fetchImpl, idempotencyKey: "stub-1", idempotency });
   const second = await readDigitalHuman("dh", { env, fetchImpl, idempotencyKey: "stub-1", idempotency });
   assert.equal(calls, 1);
+  assert.equal(seen, "http://127.0.0.1:9/api/integrations/v1/digital-humans/dh");
   assert.equal(first.assistant.secret, "nope");
   assert.equal(second.assistant.secret, "nope");
 });

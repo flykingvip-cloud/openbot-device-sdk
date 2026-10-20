@@ -1,6 +1,6 @@
 # A4 认领、绑定与 OTA 控制面
 
-`services` 里的 `ControlPlane` 是实验控制面。不传 `store` 时状态在内存里。传入文件或 sqlite 的 `StagingDb` 后，认领、绑定、实验 OTA、短时凭证和吊销可以在新进程里读回。它不监听端口，不下载固件，不写设备分区。控制台用法见 [a5-console-sim.md](a5-console-sim.md)。
+`services` 里的 `ControlPlane` 是实验控制面。不传 `store` 时状态在内存里。传入文件或 sqlite 的 `StagingDb` 后，认领、绑定、实验 OTA、短时凭证和吊销可以在新进程里读回。控制面本身不下载固件，不写设备分区。另有一个实验配置 HTTP，见 [lab-ota-config.md](lab-ota-config.md)。控制台用法见 [a5-console-sim.md](a5-console-sim.md)。
 
 ## 认领
 
@@ -37,7 +37,7 @@
 - `rollout` 为 `production`、`mass` 或 `fleet`
 - `scope` 不是单设备
 
-B5 stand-in `GET /v1/device/ota` 的 `flash` 也是 false。openbot-vp 的当前针还没有这条路由，不能把 stand-in 当成线上 OTA。
+B5 stand-in `GET /v1/device/ota` 的 `flash` 也是 false。当前针的 OpenAPI 在本环境是 404，不能把 stand-in 或实验配置 HTTP 当成线上 OTA。配置响应里的 `firmwareUrl` 同样是 null。
 
 ## 与固件 OTA 的边界
 

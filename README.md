@@ -8,14 +8,14 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d` |
-| 状态 | openbot-vp `main`，PR #7 的 squash merge，Agent B 报告其中有 B0–B5 stub |
-| PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/7> |
-| `previousSha` | `554910d835f3baadb1d753532ad510b1b477be09`，PR #7 合并前 tip，**已作废** |
-| 更早作废 | `dd6c85cae086d90c519ff1be7ad08e20d4644bba`（无父提交的恢复快照） |
+| `OPENBOT_CONTRACT_SHA` | `536a963b119f0a00675516401c52dd0f6187b196` |
+| 状态 | openbot-vp `main`，PR #8 的 squash merge（真实 Agent/vision） |
+| PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/8> |
+| `previousSha` | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`，PR #7 squash，**已作废** |
+| 更早作废 | `554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
 | 作废 | `68e062e` @ `upbeyond/openbot` |
 
-本环境请求 `flykingvip-cloud/openbot-vp` 仍得到 404，读不到该提交里的 stub 路由，因此继续使用 `contracts/stand-in/b0-b5.json` 的本地 mock，没有按该提交改路径。`554910d8…` 和 `dd6c85ca…` 都不能再当作合约针。设置 `OPENBOT_DEVICE_DH_STUB_URL` 之后，B1 才会请求 live stub；否则测试跳过该用例。
+本环境请求该提交的 OpenAPI 仍得到 404，`contracts/openbot/` 只放未拉取槽，`routesAligned` 为 false。B1 live stub 请求 `{OPENBOT_DEVICE_DH_STUB_URL}/api/integrations/v1/digital-humans/{id}`；未设置该环境变量时测试跳过。B0 与 B2–B5 仍用本地 stand-in。`8abdc7f9…` 不能再当作 `officialMergeSha`。
 
 冻结字段名不变：`authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`，以及整个 `assistant.*`。
 
@@ -27,13 +27,13 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 
 | 路径 | 内容 |
 |---|---|
-| `contracts/` | SHA 针、冻结字段、B0–B5 本地 stand-in |
+| `contracts/` | SHA 针、冻结字段、消费者路径镜像、未拉取的 OpenAPI 槽、B0–B5 本地 stand-in |
 | `sdk/` | 对外入口、媒体能力、设备工具 |
 | `adapters/metalio/` | 语音线、Opus 占位边界、打断残留 2400 ms |
 | `integrations/openbot-b1` | 数字人资料消费者 |
 | `integrations/openbot-b2` | 会话消费者 |
 | `integrations/openbot-b3` | 设备工具消费者 |
-| `services/` | 认领、绑定、实验 OTA 记录；可选的文件 / sqlite 状态 |
+| `services/` | 认领、绑定、实验 OTA 记录、实验配置 HTTP；可选的文件 / sqlite 状态 |
 | `console/` | 认领、绑定、OTA、refresh、吊销的实验控制台 |
 | `simulator/` | 无真机的 B1–B3 stand-in 与重连模拟 |
 | `docs/` | A0 笔记、A2、A4、A5、B1–B3、工程清单 |
@@ -52,8 +52,8 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 控制面默认在内存里工作，方便单元测试。`npm run console` 和 `npm run sim` 把同一份状态写进本地 sqlite 或 JSON，进程退出后还能读回来。认领、绑定和 OTA 的规则不变：
 
 1. 6 位认领码，通过后才能绑定。
-2. 绑定写入冻结字段。再次绑定会更换 `authorizationRef`、递增 `bindingVersion`，并原样保留 `assistant.*`。
-3. OTA 只能给单台已绑定设备记一条不可执行的版本记录。`firmwareUrl` 为空，`force` 为 0。
+2. 绑定写入冻结字段。再次绑定会更换 `authorizationRef`、递增 `bindingVersion`。`assistant` 字段名不变，新资料替换旧值。
+3. OTA 只能给单台已绑定设备记一条不可执行的版本记录。`firmwareUrl` 为空，`force` 为 0。实验配置 HTTP 同样不提供固件 URL。
 
 `flash()` 和 `massFlash()` 一定会失败。这里不会生产烧录，也不会批量刷机，也不会把 `https://api.tenclass.net/xiaozhi/ota/` 当作本平台入口。
 
@@ -65,9 +65,10 @@ npm test
 npm run typecheck
 npm run console
 npm run sim
+npm run ota-config -- --help
 ```
 
-控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。
+控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。
 
 Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL` 时跳过 live stub。
 
@@ -76,6 +77,7 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 - [docs/a0-firmware-baseline.md](docs/a0-firmware-baseline.md)
 - [docs/a2-metalio-voice.md](docs/a2-metalio-voice.md)
 - [docs/a4-claim-bind-ota.md](docs/a4-claim-bind-ota.md)
+- [docs/lab-ota-config.md](docs/lab-ota-config.md)
 - [docs/a5-console-sim.md](docs/a5-console-sim.md)
 - [docs/integration/b1.md](docs/integration/b1.md)
 - [docs/integration/b2.md](docs/integration/b2.md)

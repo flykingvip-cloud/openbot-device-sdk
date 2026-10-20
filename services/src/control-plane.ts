@@ -275,6 +275,14 @@ export class ControlPlane {
     return structuredClone(next);
   }
 
+  claimStatus(deviceId: string): "missing" | "pending" | "claimed" {
+    const claim = this.claims.get(deviceId);
+    if (!claim) {
+      return "missing";
+    }
+    return claim.status;
+  }
+
   getBinding(deviceId: string): FrozenBinding | undefined {
     const binding = this.bindings.get(deviceId);
     return binding === undefined ? undefined : structuredClone(binding);
@@ -347,6 +355,15 @@ export class ControlPlane {
   getConnectionCredential(token: string): ConnectionCredential | undefined {
     const found = this.credentials.get(token);
     return found === undefined ? undefined : { ...found };
+  }
+
+  activeConnectionCredential(deviceId: string): ConnectionCredential | undefined {
+    for (const credential of this.credentials.values()) {
+      if (credential.deviceId === deviceId) {
+        return { ...credential };
+      }
+    }
+    return undefined;
   }
 
   activeCredentialCount(deviceId: string): number {

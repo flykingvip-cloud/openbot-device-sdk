@@ -3,15 +3,16 @@
   "status": "local-stand-in",
   "routeSource": "local-mock-access-limited",
   "contract": {
-    "sha": "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
+    "sha": "536a963b119f0a00675516401c52dd0f6187b196",
     "repo": "https://github.com/flykingvip-cloud/openbot-vp",
-    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/7",
+    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/8",
     "status": "main",
     "merge": "squash",
-    "officialMergeSha": "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
-    "previousSha": "554910d835f3baadb1d753532ad510b1b477be09",
+    "officialMergeSha": "536a963b119f0a00675516401c52dd0f6187b196",
+    "previousSha": "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
     "previousShaStatus": "invalidated",
     "invalidatedShas": [
+      "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
       "554910d835f3baadb1d753532ad510b1b477be09",
       "dd6c85cae086d90c519ff1be7ad08e20d4644bba"
     ],
@@ -25,7 +26,7 @@
       "status": "obsolete"
     },
     "liveStubEnv": "OPENBOT_DEVICE_DH_STUB_URL",
-    "note": "Official pin is the squash merge of openbot-vp pull 7 on main. Agent B reports a B0-B5 stub at this SHA. Invalidated: pre-merge tip 554910d835f3baadb1d753532ad510b1b477be09 and older snapshot dd6c85cae086d90c519ff1be7ad08e20d4644bba. This environment still receives HTTP 404 for the repository, so the paths below stay local mocks and were not copied from that commit. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
+    "note": "Official pin is the squash merge of openbot-vp pull 8 on main (real Agent/vision). Invalidated and not officialMergeSha: 8abdc7f9a0ae49c340de712fbba235b1064f6c7d (pull 7 squash), 554910d835f3baadb1d753532ad510b1b477be09, and dd6c85cae086d90c519ff1be7ad08e20d4644bba. This environment still receives HTTP 404 for the OpenAPI at this SHA, so routesAligned stays false. B1 records the transcribed live path /api/integrations/v1/digital-humans/{digitalHumanId}. B0 and B2-B5 stay local mocks and were not copied from that commit. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
   },
   "consumerChecks": {
     "B1": ["idempotent-read"],
@@ -48,7 +49,7 @@
       "id": "B1",
       "name": "digitalHuman.profile",
       "method": "GET",
-      "path": "/v1/digital-humans/{digitalHumanId}",
+      "path": "/api/integrations/v1/digital-humans/{digitalHumanId}",
       "consumer": "integrations/openbot-b1"
     },
     {
