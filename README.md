@@ -2,19 +2,20 @@
 
 Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-device-sdk](https://github.com/flykingvip-cloud/openbot-device-sdk)。不要使用已暂停的 `upbeyond/openbot-device-sdk`。
 
-这棵树按已落地的 A0–A4 交付重建，并加上 A5 的实验控制台、模拟器和重连：A0–A2 的固件基线和 Metalio 语音线，A3 的设备工具与媒体描述，A4 的认领 / 绑定 / OTA 控制面。旧仓库当前读不到，能对上公开固件和收回的 A0 笔记的部分按原行为实现。openbot-vp PR #7 的合并前 tip 据报已有 B0–B5，但本环境得到 404，仍用本地 stand-in，不把 mock 路径当成已发布路由。
+这棵树按已落地的 A0–A4 交付重建，并加上 A5 的实验控制台、模拟器和重连：A0–A2 的固件基线和 Metalio 语音线，A3 的设备工具与媒体描述，A4 的认领 / 绑定 / OTA 控制面。旧仓库当前读不到，能对上公开固件和收回的 A0 笔记的部分按原行为实现。openbot-vp `main` 上的 squash merge 据报带有 B0–B5 stub，但本环境得到 404，仍用本地 stand-in，不把 mock 路径当成已发布路由。
 
 ## 合约针
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `554910d835f3baadb1d753532ad510b1b477be09` |
-| 状态 | openbot-vp PR #7 的**合并前** tip，还不是 `main` 上的正式 SHA |
+| `OPENBOT_CONTRACT_SHA` | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d` |
+| 状态 | openbot-vp `main`，PR #7 的 squash merge，Agent B 报告其中有 B0–B5 stub |
 | PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/7> |
-| 上一枚针 | `dd6c85cae086d90c519ff1be7ad08e20d4644bba`（无父提交的恢复快照） |
+| `previousSha` | `554910d835f3baadb1d753532ad510b1b477be09`，PR #7 合并前 tip，**已作废** |
+| 更早作废 | `dd6c85cae086d90c519ff1be7ad08e20d4644bba`（无父提交的恢复快照） |
 | 作废 | `68e062e` @ `upbeyond/openbot` |
 
-Agent B 说明 B0–B5 在这个 tip 上。本环境请求 `flykingvip-cloud/openbot-vp` 得到 404，读不到路由，因此仍使用 `contracts/stand-in/b0-b5.json` 里的本地 mock，没有按 PR tip 改路径。Agent B 合并到 `main` 并给出正式 SHA 之后，再替换 `OPENBOT_CONTRACT_SHA`。设置 `OPENBOT_DEVICE_DH_STUB_URL` 之后，B1 才会请求 live stub；否则测试跳过该用例。
+本环境请求 `flykingvip-cloud/openbot-vp` 仍得到 404，读不到该提交里的 stub 路由，因此继续使用 `contracts/stand-in/b0-b5.json` 的本地 mock，没有按该提交改路径。`554910d8…` 和 `dd6c85ca…` 都不能再当作合约针。设置 `OPENBOT_DEVICE_DH_STUB_URL` 之后，B1 才会请求 live stub；否则测试跳过该用例。
 
 冻结字段名不变：`authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`，以及整个 `assistant.*`。
 
@@ -66,7 +67,7 @@ npm run console
 npm run sim
 ```
 
-控制台和模拟器的步骤、状态文件和合并前合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。
+控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。
 
 Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL` 时跳过 live stub。
 

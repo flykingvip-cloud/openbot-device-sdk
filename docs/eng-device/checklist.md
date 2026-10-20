@@ -4,12 +4,13 @@
 
 ## 合约
 
-- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `554910d835f3baadb1d753532ad510b1b477be09`
-- [ ] 文档写明这是 openbot-vp PR #7 的合并前 tip，正式合并 SHA 还没替换它
-- [ ] 上一枚针 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 只作为 `previousSha` 保留
+- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`
+- [ ] 文档写明这是 openbot-vp `main` 上 PR #7 的 squash merge
+- [ ] `previousSha` 为已作废的合并前 tip `554910d835f3baadb1d753532ad510b1b477be09`
+- [ ] 更早的 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 也在 `invalidatedShas` 里，不再当作当前针
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] 文档写明本环境读取该仓库得到 404，stand-in 路由没有按 PR tip 改写
+- [ ] 文档写明本环境读取该仓库得到 404，stand-in 路由没有按 main 上的 stub 改写
 - [ ] B0–B5 仍走 `contracts/stand-in/b0-b5.json`，`routesAligned` 仍是 false
 - [ ] 冻结字段仍是 `authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`、`assistant.*`
 - [ ] 未设置 `OPENBOT_DEVICE_DH_STUB_URL` 时不访问 live stub

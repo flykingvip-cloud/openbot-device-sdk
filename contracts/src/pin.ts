@@ -1,21 +1,31 @@
 /**
  * Contract pin for Agent A.
  *
- * `554910d835f3baadb1d753532ad510b1b477be09` is the pre-merge tip of
- * https://github.com/flykingvip-cloud/openbot-vp/pull/7. Agent B reported that
- * B0–B5 landed there. This environment cannot read that repository (HTTP 404),
- * so local stand-in routes were not rewritten from the tip.
- * Replace this SHA with the official main merge SHA when Agent B sends it.
- * `dd6c85cae086d90c519ff1be7ad08e20d4644bba` is the previous parentless snapshot.
+ * `8abdc7f9a0ae49c340de712fbba235b1064f6c7d` is the squash merge of
+ * https://github.com/flykingvip-cloud/openbot-vp/pull/7 on `main`.
+ * Agent B reports that commit as the B0–B5 stub.
+ * This environment still cannot read that repository (HTTP 404), so local
+ * stand-in routes were not rewritten from the tree.
+ *
+ * Invalidated and must not be used as the pin:
+ * - `554910d835f3baadb1d753532ad510b1b477be09` (pre-merge tip of PR #7)
+ * - `dd6c85cae086d90c519ff1be7ad08e20d4644bba` (older parentless snapshot)
+ *
  * The short pin `68e062e` on `upbeyond/openbot` is obsolete and must not be read.
  */
-export const OPENBOT_CONTRACT_SHA = "554910d835f3baadb1d753532ad510b1b477be09";
+export const OPENBOT_CONTRACT_SHA = "8abdc7f9a0ae49c340de712fbba235b1064f6c7d";
 
 export const OPENBOT_CONTRACT_REPO = "https://github.com/flykingvip-cloud/openbot-vp";
 
 export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/7";
 
-export const PREVIOUS_CONTRACT_SHA = "dd6c85cae086d90c519ff1be7ad08e20d4644bba";
+/** Immediate predecessor. Invalidated: it was only the pre-merge tip of PR #7. */
+export const PREVIOUS_CONTRACT_SHA = "554910d835f3baadb1d753532ad510b1b477be09";
+
+/** Older parentless snapshot. Also invalidated. */
+export const OLDER_CONTRACT_SHA = "dd6c85cae086d90c519ff1be7ad08e20d4644bba";
+
+export const INVALIDATED_CONTRACT_SHAS = [PREVIOUS_CONTRACT_SHA, OLDER_CONTRACT_SHA] as const;
 
 export const OBSOLETE_CONTRACT_SHA_PREFIX = "68e062e";
 
@@ -27,11 +37,14 @@ export const CONTRACT_PIN = {
   sha: OPENBOT_CONTRACT_SHA,
   repo: OPENBOT_CONTRACT_REPO,
   pr: OPENBOT_CONTRACT_PR,
-  status: "pre-merge-tip",
-  officialMergeSha: null,
+  status: "main",
+  merge: "squash",
+  officialMergeSha: OPENBOT_CONTRACT_SHA,
   previousSha: PREVIOUS_CONTRACT_SHA,
+  previousShaStatus: "invalidated",
+  invalidatedShas: INVALIDATED_CONTRACT_SHAS,
   deviceApiRange: "B0-B5",
-  deviceApisPresent: "unverified",
+  deviceApisPresent: "reported-stub",
   routesAligned: false,
   access: "unreadable-404",
   routeSource: "local-mock-access-limited",
