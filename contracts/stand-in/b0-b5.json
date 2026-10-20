@@ -1,0 +1,67 @@
+{
+  "kind": "openbot-device-api-stand-in",
+  "status": "local-stand-in",
+  "contract": {
+    "sha": "dd6c85cae086d90c519ff1be7ad08e20d4644bba",
+    "repo": "https://github.com/flykingvip-cloud/openbot-vp",
+    "snapshot": "parentless-recovery",
+    "deviceApisPresent": false,
+    "deviceApiRange": "B0-B5",
+    "obsolete": {
+      "shaPrefix": "68e062e",
+      "repo": "https://github.com/upbeyond/openbot",
+      "status": "obsolete"
+    },
+    "liveStubEnv": "OPENBOT_DEVICE_DH_STUB_URL",
+    "note": "openbot-vp at this SHA is a parentless recovery snapshot and does not publish B0-B5 device APIs. Paths below are local stand-ins. Do not call them against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set, and only until Agent B publishes a replacement SHA."
+  },
+  "frozenFields": {
+    "topLevel": ["authorizationRef", "bindingVersion", "digitalHumanId", "deviceId"],
+    "prefixes": ["assistant."]
+  },
+  "apis": [
+    {
+      "id": "B0",
+      "name": "device.capabilities",
+      "method": "GET",
+      "path": "/v1/device/capabilities",
+      "consumer": null
+    },
+    {
+      "id": "B1",
+      "name": "digitalHuman.profile",
+      "method": "GET",
+      "path": "/v1/digital-humans/{digitalHumanId}",
+      "consumer": "integrations/openbot-b1"
+    },
+    {
+      "id": "B2",
+      "name": "device.session",
+      "method": "POST",
+      "path": "/v1/device/sessions",
+      "consumer": "integrations/openbot-b2"
+    },
+    {
+      "id": "B3",
+      "name": "device.tools",
+      "method": "POST",
+      "path": "/v1/device/tools:invoke",
+      "consumer": "integrations/openbot-b3"
+    },
+    {
+      "id": "B4",
+      "name": "device.media",
+      "method": "GET",
+      "path": "/v1/device/media/capabilities",
+      "consumer": "sdk/media"
+    },
+    {
+      "id": "B5",
+      "name": "device.ota.describe",
+      "method": "GET",
+      "path": "/v1/device/ota",
+      "consumer": "services/ota",
+      "flash": false
+    }
+  ]
+}
