@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { OPENBOT_CONTRACT_SHA } from "../contracts/src/index.ts";
 import { ControlPlane, OtaDisabledError, openStaging } from "../services/src/index.ts";
-import { LAB_VOICE_WSS_URL, buildLabDeviceConfig, startLabOtaConfigServer } from "../services/src/ota-config.ts";
+import { LAB_VOICE_WSS_ENV, LAB_VOICE_WSS_URL, buildLabDeviceConfig, resolveLabVoiceWssUrl, startLabOtaConfigServer } from "../services/src/ota-config.ts";
 
 const ASSISTANT = { voiceId: "voice-lab" };
 
@@ -37,8 +37,8 @@ test("config fetch distinguishes unclaimed and claimed, and never offers firmwar
   const control = plane();
   const missing = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790");
   assert.equal(missing.contractSha, OPENBOT_CONTRACT_SHA);
-  assert.equal(missing.contractSha, "536a963b119f0a00675516401c52dd0f6187b196");
-  assert.equal(missing.routesAligned, false);
+  assert.equal(missing.contractSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
+  assert.equal(missing.routesAligned, true);
   assert.equal(missing.claimStatus, "missing");
   assert.equal(missing.token, null);
   assert.equal(missing.bindingVersion, null);
@@ -132,6 +132,21 @@ test("config token survives a staging reopen until revoke", () => {
   assert.equal(cleared.firmwareUrl, null);
 });
 
+test("claimed config uses the lab voice URL and refuses production hosts", () => {
+  const control = plane();
+  claimAndBind(control);
+  const lab = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790", {
+    env: { [LAB_VOICE_WSS_ENV]: "ws://127.0.0.1:8791" },
+  });
+  assert.equal(lab.voiceWssUrl, "ws://127.0.0.1:8791");
+  assert.equal(lab.claimStatus, "claimed");
+  const blocked = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790", {
+    env: { [LAB_VOICE_WSS_ENV]: "wss://api.tenclass.net/xiaozhi/v1/" },
+  });
+  assert.equal(blocked.voiceWssUrl, LAB_VOICE_WSS_URL);
+  assert.equal(resolveLabVoiceWssUrl({ [LAB_VOICE_WSS_ENV]: "wss://example.com/voice" }), LAB_VOICE_WSS_URL);
+});
+
 test("lab config HTTP serves healthz and device config", async () => {
   const control = plane();
   const server = await startLabOtaConfigServer(control, { host: "127.0.0.1", port: 0 });
@@ -162,7 +177,7 @@ test("lab config HTTP serves healthz and device config", async () => {
     assert.equal(bound.token, "ctok_1");
     assert.equal(bound.deviceApiUrl, `${server.url}/api/integrations/v1`);
     assert.equal(bound.voiceWssUrl, "wss://lab.invalid/voice");
-    assert.equal(bound.routesAligned, false);
+    assert.equal(bound.routesAligned, true);
 
     control.revoke("dev-ota");
     const revoked = (await (await fetch(`${server.url}/devices/dev-ota/config`)).json()) as { token: string | null };

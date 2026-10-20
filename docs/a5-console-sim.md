@@ -6,13 +6,13 @@
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `536a963b119f0a00675516401c52dd0f6187b196` |
-| 来源 | openbot-vp `main`，<https://github.com/flykingvip-cloud/openbot-vp/pull/8> 的 squash merge（真实 Agent/vision） |
-| `previousSha` | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`，PR #7 squash，**已作废** |
-| 更早作废 | `554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
-| 本环境 | 读取该提交的 OpenAPI 仍返回 **404** |
+| `OPENBOT_CONTRACT_SHA` | `41b7561222775e4ad00b056e2a535c7f950bcbe9` |
+| 来源 | openbot-vp `main`，<https://github.com/flykingvip-cloud/openbot-vp/pull/9> 的 squash merge |
+| `previousSha` | `536a963b119f0a00675516401c52dd0f6187b196`，PR #8 squash，**已作废** |
+| 更早作废 | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
+| OpenAPI | 已入库，`routesAligned` 为 true |
 
-OpenAPI 槽没有真实字节，所以 `routesAligned` 为 false，`routeSource` 为 `local-mock-access-limited`。B1 live 路径是 `/api/integrations/v1/digital-humans/{digitalHumanId}`。B0 与 B2–B5 仍是本地 mock。冻结字段名不变。`8abdc7f9…` 不是当前 `officialMergeSha`。
+B1 live 路径是 `/api/integrations/v1/digital-humans/{digitalHumanId}`。B0 与 B2–B5 仍是本地 mock。冻结字段名不变。`536a963b…` 不是当前 `officialMergeSha`。
 
 ## 怎么跑
 

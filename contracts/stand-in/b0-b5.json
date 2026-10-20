@@ -1,32 +1,33 @@
 {
   "kind": "openbot-device-api-stand-in",
   "status": "local-stand-in",
-  "routeSource": "local-mock-access-limited",
+  "routeSource": "local-stand-in",
   "contract": {
-    "sha": "536a963b119f0a00675516401c52dd0f6187b196",
+    "sha": "41b7561222775e4ad00b056e2a535c7f950bcbe9",
     "repo": "https://github.com/flykingvip-cloud/openbot-vp",
-    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/8",
+    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/9",
     "status": "main",
     "merge": "squash",
-    "officialMergeSha": "536a963b119f0a00675516401c52dd0f6187b196",
-    "previousSha": "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
+    "officialMergeSha": "41b7561222775e4ad00b056e2a535c7f950bcbe9",
+    "previousSha": "536a963b119f0a00675516401c52dd0f6187b196",
     "previousShaStatus": "invalidated",
     "invalidatedShas": [
+      "536a963b119f0a00675516401c52dd0f6187b196",
       "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
       "554910d835f3baadb1d753532ad510b1b477be09",
       "dd6c85cae086d90c519ff1be7ad08e20d4644bba"
     ],
     "deviceApiRange": "B0-B5",
     "deviceApisPresent": "reported-stub",
-    "routesAligned": false,
-    "access": "unreadable-404",
+    "routesAligned": true,
+    "access": "vendored",
     "obsolete": {
       "shaPrefix": "68e062e",
       "repo": "https://github.com/upbeyond/openbot",
       "status": "obsolete"
     },
     "liveStubEnv": "OPENBOT_DEVICE_DH_STUB_URL",
-    "note": "Official pin is the squash merge of openbot-vp pull 8 on main (real Agent/vision). Invalidated and not officialMergeSha: 8abdc7f9a0ae49c340de712fbba235b1064f6c7d (pull 7 squash), 554910d835f3baadb1d753532ad510b1b477be09, and dd6c85cae086d90c519ff1be7ad08e20d4644bba. This environment still receives HTTP 404 for the OpenAPI at this SHA, so routesAligned stays false. B1 records the transcribed live path /api/integrations/v1/digital-humans/{digitalHumanId}. B0 and B2-B5 stay local mocks and were not copied from that commit. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
+    "note": "Official pin is the squash merge of openbot-vp pull 9 on main, SHA 41b7561222775e4ad00b056e2a535c7f950bcbe9. The OpenAPI at that SHA is vendored and consumer paths plus SSE event enums match, so routesAligned is true. Invalidated and not officialMergeSha: 536a963b119f0a00675516401c52dd0f6187b196 (pull 8 squash), 8abdc7f9a0ae49c340de712fbba235b1064f6c7d (pull 7 squash), 554910d835f3baadb1d753532ad510b1b477be09, and dd6c85cae086d90c519ff1be7ad08e20d4644bba. B0 and B2-B5 below remain local stand-in handlers and are not the vendored grants, conversations, runs, or media routes. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
   },
   "consumerChecks": {
     "B1": ["idempotent-read"],

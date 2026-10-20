@@ -3,11 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  ALIGNMENT_GAPS,
   CONSUMER_ROUTES,
   CONTRACT_PIN,
   DEVICE_EVENT_TYPES,
   DIGITAL_HUMAN_PROFILE_PATH,
+  EVENT_ENVELOPE_TYPES,
+  IMPLEMENTATION_GAPS,
   INTEGRATIONS_API_PREFIX,
   INVALIDATED_CONTRACT_SHAS,
   OLDER_CONTRACT_SHA,
@@ -17,9 +18,11 @@ import {
   OPENBOT_CONTRACT_REPO,
   OPENBOT_CONTRACT_SHA,
   PR7_PREMERGE_CONTRACT_SHA,
+  PR7_SQUASH_CONTRACT_SHA,
   PREVIOUS_CONTRACT_SHA,
   RUN_EVENT_TYPES,
   STUB_SERVER_URL,
+  alignConsumerRoutes,
   digitalHumanProfileUrl,
   loadStandInDocument,
   parseStandInDocument,
@@ -28,23 +31,29 @@ import {
 test("OPENBOT_CONTRACT_SHA file matches the pin", () => {
   const file = readFileSync(new URL("../contracts/OPENBOT_CONTRACT_SHA", import.meta.url), "utf8").trim();
   assert.equal(file, OPENBOT_CONTRACT_SHA);
-  assert.equal(file, "536a963b119f0a00675516401c52dd0f6187b196");
+  assert.equal(file, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
   assert.equal(OPENBOT_CONTRACT_REPO, "https://github.com/flykingvip-cloud/openbot-vp");
-  assert.equal(OPENBOT_CONTRACT_PR, "https://github.com/flykingvip-cloud/openbot-vp/pull/8");
+  assert.equal(OPENBOT_CONTRACT_PR, "https://github.com/flykingvip-cloud/openbot-vp/pull/9");
   assert.equal(CONTRACT_PIN.status, "main");
   assert.equal(CONTRACT_PIN.merge, "squash");
   assert.equal(CONTRACT_PIN.officialMergeSha, OPENBOT_CONTRACT_SHA);
   assert.equal(CONTRACT_PIN.previousSha, PREVIOUS_CONTRACT_SHA);
   assert.equal(CONTRACT_PIN.previousShaStatus, "invalidated");
-  assert.equal(PREVIOUS_CONTRACT_SHA, "8abdc7f9a0ae49c340de712fbba235b1064f6c7d");
+  assert.equal(PREVIOUS_CONTRACT_SHA, "536a963b119f0a00675516401c52dd0f6187b196");
+  assert.equal(PR7_SQUASH_CONTRACT_SHA, "8abdc7f9a0ae49c340de712fbba235b1064f6c7d");
   assert.equal(PR7_PREMERGE_CONTRACT_SHA, "554910d835f3baadb1d753532ad510b1b477be09");
   assert.equal(OLDER_CONTRACT_SHA, "dd6c85cae086d90c519ff1be7ad08e20d4644bba");
-  assert.deepEqual(INVALIDATED_CONTRACT_SHAS, [PREVIOUS_CONTRACT_SHA, PR7_PREMERGE_CONTRACT_SHA, OLDER_CONTRACT_SHA]);
+  assert.deepEqual(INVALIDATED_CONTRACT_SHAS, [
+    PREVIOUS_CONTRACT_SHA,
+    PR7_SQUASH_CONTRACT_SHA,
+    PR7_PREMERGE_CONTRACT_SHA,
+    OLDER_CONTRACT_SHA,
+  ]);
   assert.equal((INVALIDATED_CONTRACT_SHAS as readonly string[]).includes(OPENBOT_CONTRACT_SHA), false);
   assert.equal(CONTRACT_PIN.deviceApisPresent, "reported-stub");
-  assert.equal(CONTRACT_PIN.routesAligned, false);
-  assert.equal(CONTRACT_PIN.access, "unreadable-404");
-  assert.equal(CONTRACT_PIN.routeSource, "local-mock-access-limited");
+  assert.equal(CONTRACT_PIN.routesAligned, true);
+  assert.equal(CONTRACT_PIN.access, "vendored");
+  assert.equal(CONTRACT_PIN.routeSource, "vendored-openapi");
   assert.equal(CONTRACT_PIN.obsolete.shaPrefix, "68e062e");
   assert.equal(CONTRACT_PIN.obsolete.repo, "https://github.com/upbeyond/openbot");
 });
@@ -52,15 +61,16 @@ test("OPENBOT_CONTRACT_SHA file matches the pin", () => {
 test("B0-B5 stand-in stays local and does not flash", () => {
   const doc = loadStandInDocument();
   assert.equal(doc.status, "local-stand-in");
-  assert.equal(doc.routeSource, "local-mock-access-limited");
+  assert.equal(doc.routeSource, "local-stand-in");
   assert.equal(doc.contract.deviceApisPresent, "reported-stub");
-  assert.equal(doc.contract.routesAligned, false);
-  assert.equal(doc.contract.access, "unreadable-404");
-  assert.equal(doc.contract.officialMergeSha, "536a963b119f0a00675516401c52dd0f6187b196");
-  assert.notEqual(doc.contract.officialMergeSha, "8abdc7f9a0ae49c340de712fbba235b1064f6c7d");
+  assert.equal(doc.contract.routesAligned, true);
+  assert.equal(doc.contract.access, "vendored");
+  assert.equal(doc.contract.officialMergeSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
+  assert.notEqual(doc.contract.officialMergeSha, "536a963b119f0a00675516401c52dd0f6187b196");
   assert.equal(doc.contract.previousSha, PREVIOUS_CONTRACT_SHA);
   assert.equal(doc.contract.previousShaStatus, "invalidated");
   assert.deepEqual(doc.contract.invalidatedShas, [
+    "536a963b119f0a00675516401c52dd0f6187b196",
     "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
     "554910d835f3baadb1d753532ad510b1b477be09",
     "dd6c85cae086d90c519ff1be7ad08e20d4644bba",
@@ -89,12 +99,14 @@ test("B0-B5 stand-in stays local and does not flash", () => {
   });
 });
 
-test("stand-in rejects a pin that pretends the PR routes were copied", () => {
+test("stand-in rejects a pin that hides the vendored OpenAPI", () => {
   const doc = structuredClone(loadStandInDocument()) as unknown as { contract: { routesAligned: boolean; sha: string } };
-  doc.contract.routesAligned = true;
-  assert.throws(() => parseStandInDocument(doc), /local until the main tree can be read/);
   doc.contract.routesAligned = false;
+  assert.throws(() => parseStandInDocument(doc), /vendored OpenAPI/);
+  doc.contract.routesAligned = true;
   doc.contract.sha = PREVIOUS_CONTRACT_SHA;
+  assert.throws(() => parseStandInDocument(doc), /not pinned/);
+  doc.contract.sha = PR7_SQUASH_CONTRACT_SHA;
   assert.throws(() => parseStandInDocument(doc), /not pinned/);
   doc.contract.sha = PR7_PREMERGE_CONTRACT_SHA;
   assert.throws(() => parseStandInDocument(doc), /not pinned/);
@@ -102,29 +114,36 @@ test("stand-in rejects a pin that pretends the PR routes were copied", () => {
   assert.throws(() => parseStandInDocument(doc), /not pinned/);
 });
 
-test("consumer mirror keeps the integrations prefix while the OpenAPI slot is unfetched", () => {
+test("vendored OpenAPI matches consumer paths and SSE event enums", () => {
   const slot = readFileSync(new URL("../contracts/openbot/device-digital-human.openapi.yaml", import.meta.url), "utf8");
-  assert.match(slot, /unfetched: true/);
-  assert.match(slot, new RegExp(OPENBOT_CONTRACT_SHA));
-  assert.equal(slot.includes("openapi:"), false);
-  assert.equal(OPENAPI_FETCH.vendored, false);
-  assert.equal(OPENAPI_FETCH.httpStatus, 404);
-  assert.equal(OPENAPI_FETCH.routesAligned, false);
+  assert.match(slot, /^openapi: 3\.0\.3/m);
+  assert.equal(slot.includes("unfetched:"), false);
+  assert.match(slot, /http:\/\/127\.0\.0\.1:8787\/api\/integrations\/v1/);
+  assert.equal(OPENAPI_FETCH.vendored, true);
+  assert.equal(OPENAPI_FETCH.sha, OPENBOT_CONTRACT_SHA);
+  assert.equal(OPENAPI_FETCH.routesAligned, true);
   assert.equal(OPENAPI_SOURCE_URL.includes(OPENBOT_CONTRACT_SHA), true);
   assert.equal(STUB_SERVER_URL, "http://127.0.0.1:8787/api/integrations/v1");
   assert.equal(DIGITAL_HUMAN_PROFILE_PATH, "/api/integrations/v1/digital-humans/{digitalHumanId}");
   assert.equal(digitalHumanProfileUrl("http://127.0.0.1:8787/", "dh/1"), "http://127.0.0.1:8787/api/integrations/v1/digital-humans/dh%2F1");
   const health = CONSUMER_ROUTES.find((route) => route.path === "/healthz");
   assert.equal(health?.underIntegrationsPrefix, false);
+  assert.equal(slot.includes("\n  /healthz:"), false);
   for (const route of CONSUMER_ROUTES) {
     if (route.underIntegrationsPrefix) {
       assert.equal(route.path.startsWith(INTEGRATIONS_API_PREFIX), true);
     }
   }
   assert.equal(
-    CONSUMER_ROUTES.some((route) => route.path.endsWith("/conversations/{id}/turns") && "idempotencyKey" in route),
+    CONSUMER_ROUTES.some(
+      (route) => route.path.endsWith("/conversations/{conversationId}/turns") && "idempotencyKey" in route,
+    ),
     true,
   );
+  const alignment = alignConsumerRoutes(slot);
+  assert.deepEqual(alignment.gaps, []);
+  assert.equal(alignment.aligned, true);
+  assert.equal(CONTRACT_PIN.routesAligned, alignment.aligned);
   assert.deepEqual(RUN_EVENT_TYPES, [
     "run.accepted",
     "run.started",
@@ -143,6 +162,10 @@ test("consumer mirror keeps the integrations prefix while the OpenAPI slot is un
     "binding.updated",
     "run.cancelled",
   ]);
-  assert.equal(ALIGNMENT_GAPS.length > 0, true);
-  assert.equal(CONTRACT_PIN.routesAligned, false);
+  assert.deepEqual(EVENT_ENVELOPE_TYPES, [
+    ...RUN_EVENT_TYPES,
+    "authorization.revoked",
+    "binding.updated",
+  ]);
+  assert.equal(IMPLEMENTATION_GAPS.length > 0, true);
 });

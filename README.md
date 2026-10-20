@@ -8,14 +8,14 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `536a963b119f0a00675516401c52dd0f6187b196` |
-| 状态 | openbot-vp `main`，PR #8 的 squash merge（真实 Agent/vision） |
-| PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/8> |
-| `previousSha` | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`，PR #7 squash，**已作废** |
-| 更早作废 | `554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
+| `OPENBOT_CONTRACT_SHA` | `41b7561222775e4ad00b056e2a535c7f950bcbe9` |
+| 状态 | openbot-vp `main`，PR #9 的 squash merge |
+| PR | <https://github.com/flykingvip-cloud/openbot-vp/pull/9> |
+| `previousSha` | `536a963b119f0a00675516401c52dd0f6187b196`，PR #8 squash，**已作废** |
+| 更早作废 | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
 | 作废 | `68e062e` @ `upbeyond/openbot` |
 
-本环境请求该提交的 OpenAPI 仍得到 404，`contracts/openbot/` 只放未拉取槽，`routesAligned` 为 false。B1 live stub 请求 `{OPENBOT_DEVICE_DH_STUB_URL}/api/integrations/v1/digital-humans/{id}`；未设置该环境变量时测试跳过。B0 与 B2–B5 仍用本地 stand-in。`8abdc7f9…` 不能再当作 `officialMergeSha`。
+该提交的 OpenAPI 已放在 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，`routesAligned` 为 true。B1 live stub 请求 `{OPENBOT_DEVICE_DH_STUB_URL}/api/integrations/v1/digital-humans/{id}`；未设置该环境变量时测试跳过。B0 与 B2–B5 仍用本地 stand-in。`536a963b…` 不能再当作 `officialMergeSha`。
 
 冻结字段名不变：`authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`，以及整个 `assistant.*`。
 
@@ -66,9 +66,10 @@ npm run typecheck
 npm run console
 npm run sim
 npm run ota-config -- --help
+npm run voice -- --help
 ```
 
-控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。
+控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。实验语音见 [docs/lab-voice.md](docs/lab-voice.md)。
 
 Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL` 时跳过 live stub。
 
@@ -78,6 +79,7 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 - [docs/a2-metalio-voice.md](docs/a2-metalio-voice.md)
 - [docs/a4-claim-bind-ota.md](docs/a4-claim-bind-ota.md)
 - [docs/lab-ota-config.md](docs/lab-ota-config.md)
+- [docs/lab-voice.md](docs/lab-voice.md)
 - [docs/a5-console-sim.md](docs/a5-console-sim.md)
 - [docs/integration/b1.md](docs/integration/b1.md)
 - [docs/integration/b2.md](docs/integration/b2.md)

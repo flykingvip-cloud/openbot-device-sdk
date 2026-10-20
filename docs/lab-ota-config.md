@@ -16,9 +16,9 @@ npm run ota-config -- --help
 
 配置里包括：
 
-- `contractSha`：`536a963b119f0a00675516401c52dd0f6187b196`
-- `routesAligned`：false（OpenAPI 槽未拉取）
-- `voiceWssUrl`：`wss://lab.invalid/voice`。这是占位，不是 ASR/TTS，也不是 `api.tenclass.net`
+- `contractSha`：`41b7561222775e4ad00b056e2a535c7f950bcbe9`
+- `routesAligned`：true（已入库 OpenAPI 的路径和 SSE 事件名一致）
+- `voiceWssUrl`：默认 `wss://lab.invalid/voice`。设置 `OPENBOT_LAB_VOICE_WSS_URL` 为本机 `ws://127.0.0.1:<port>` 后，改用实验语音。不是生产 ASR/TTS，也不是 `api.tenclass.net`
 - `deviceApiUrl`：本监听地址加上 `/api/integrations/v1`。本进程不实现 grants / conversations / runs
 - `claimStatus`：`missing`、`pending` 或 `claimed`
 - `bindingVersion`、`authorizationRef`、`digitalHumanId`：未绑定时为 null
