@@ -29,6 +29,14 @@ OpenAPI：`contracts/device-platform/device-control.openapi.yaml`。
 7. OpenBot rebind 提高 `bindingVersion` 之后，`POST .../bind/sync` 用同一个 `authorizationRef` 再读 grant。本地不换新的 `authorizationRef`。
 8. 停止用 `POST .../stop` 或 `POST .../revoke`。这只清本平台短时 token 并把 `bindStatus` 设为 `revoked`。OpenBot 侧吊销仍是 `POST /api/integrations/v1/grants/{authorizationRef}/revoke`。本地停止会保留，直到同步到更高的 `bindingVersion`，或 grant 本身已是 `revoked`。
 
+## 配对核销与过期
+
+`POST /api/device-platform/v1/pair-challenges` 写入的 `expiresAtMs` 等于创建时刻加上 10 分钟（`CLAIM_TTL_MS`）。`pairingCode` 只在这次创建响应里返回一次。
+
+成功的 redeem 把挑战标成 `redeemed`，只消费一次。同一服务主体用同一个 `pairingCode` 再次核销仍返回 `redeemed`，这是幂等重放，不再检查 `expiresAtMs`。
+
+`pairingCode` 不对时返回 `pair_code`，不消费挑战，状态保持 `pending`，直到过期或核销成功。仍为 `pending`、配对码正确、且当前时间已到 `expiresAtMs` 时返回 `pair_expired`。对同一 `deviceId` 再创建挑战会替换该设备上先前的 pending 挑战。没有失败次数计数，也没有锁定。
+
 ## 响应字段
 
 设备对象：
