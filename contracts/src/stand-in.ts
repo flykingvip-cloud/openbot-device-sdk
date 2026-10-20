@@ -98,7 +98,7 @@ export function parseStandInDocument(value: unknown): StandInDocument {
     throw new Error("stand-in document is not pinned to flykingvip-cloud/openbot-vp");
   }
   if (value.contract.pr !== OPENBOT_CONTRACT_PR || value.contract.status !== "main" || value.contract.merge !== "squash") {
-    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 15 on main");
+    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 16 on main");
   }
   if (value.contract.officialMergeSha !== OPENBOT_CONTRACT_SHA || value.contract.previousSha !== PREVIOUS_CONTRACT_SHA) {
     throw new Error("official merge SHA must be the current pin; previousSha must record the invalidated prior pin");

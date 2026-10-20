@@ -1,9 +1,9 @@
 /**
  * Contract pin for Agent A.
  *
- * `feeac51863d6d88ba83c7e16029b2911209bb0d0` is the squash merge of
- * https://github.com/flykingvip-cloud/openbot-vp/pull/15 on `main`
- * (B3 personal settings「设备与硬件」).
+ * `490a69669c0cf9e68173ceb25cfa89c99438dfb9` is the squash merge of
+ * https://github.com/flykingvip-cloud/openbot-vp/pull/16 on `main`
+ * (B4 digital-human detail「已连接设备」).
  * Frozen field names and the `/api/integrations/v1` prefix are unchanged.
  * Pairing and control-plane fields do not enter the integrations surface.
  * The vendored OpenAPI bytes stay the PR #11 document because that surface
@@ -17,7 +17,8 @@
  * `npm run live-stub` can call a loopback stub when OPENBOT_DEVICE_DH_STUB_URL is set.
  *
  * Invalidated and must not be used as the pin:
- * - `fe1e2c2a81fd3814e8588a854695640ca56db64b` (PR #14 squash; immediate predecessor)
+ * - `feeac51863d6d88ba83c7e16029b2911209bb0d0` (PR #15 squash; immediate predecessor)
+ * - `fe1e2c2a81fd3814e8588a854695640ca56db64b` (PR #14 squash)
  * - `92826116a9b00a596ae2360d8a643d6148050e3c` (PR #12 squash)
  * - `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` (PR #11 squash)
  * - `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` (PR #10 squash)
@@ -29,16 +30,19 @@
  *
  * The short pin `68e062e` on `upbeyond/openbot` is obsolete and must not be read.
  */
-export const OPENBOT_CONTRACT_SHA = "feeac51863d6d88ba83c7e16029b2911209bb0d0";
+export const OPENBOT_CONTRACT_SHA = "490a69669c0cf9e68173ceb25cfa89c99438dfb9";
 
 export const OPENBOT_CONTRACT_REPO = "https://github.com/flykingvip-cloud/openbot-vp";
 
-export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/15";
+export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/16";
 
-/** Immediate predecessor. Invalidated: PR #14 squash, replaced by PR #15. */
+/** Immediate predecessor. Invalidated: PR #15 squash, replaced by PR #16. */
+export const PR15_SQUASH_CONTRACT_SHA = "feeac51863d6d88ba83c7e16029b2911209bb0d0";
+
+export const PREVIOUS_CONTRACT_SHA = PR15_SQUASH_CONTRACT_SHA;
+
+/** PR #14 squash. Also invalidated. */
 export const PR14_SQUASH_CONTRACT_SHA = "fe1e2c2a81fd3814e8588a854695640ca56db64b";
-
-export const PREVIOUS_CONTRACT_SHA = PR14_SQUASH_CONTRACT_SHA;
 
 /** PR #12 squash. Also invalidated. */
 export const PR12_SQUASH_CONTRACT_SHA = "92826116a9b00a596ae2360d8a643d6148050e3c";
@@ -66,6 +70,7 @@ export const OLDER_CONTRACT_SHA = "dd6c85cae086d90c519ff1be7ad08e20d4644bba";
 
 export const INVALIDATED_CONTRACT_SHAS = [
   PREVIOUS_CONTRACT_SHA,
+  PR14_SQUASH_CONTRACT_SHA,
   PR12_SQUASH_CONTRACT_SHA,
   PR11_SQUASH_CONTRACT_SHA,
   PR10_SQUASH_CONTRACT_SHA,
