@@ -1,0 +1,235 @@
+openapi: 3.0.3
+info:
+  title: Device-platform control API for the OpenBot UI
+  version: device-control.v1
+  description: >
+    Lab contract owned by the device platform. It is not part of
+    /api/integrations/v1 and it does not define OpenBot pairing fields.
+    Caller identity is the service client from HTTP Basic. Bodies and query
+    strings must not carry userSubject, tenantId, or digitalHumanId as the
+    caller. The longitudinal OpenBot connector is draft PR #10 and is not
+    called by this API. flash and massFlash are absent. firmwareUrl is null.
+    Three draft entries for OpenBot「设备与硬件」, for Agent B to freeze:
+    device-control.discover (设备发现), device-control.pair (设备配对),
+    device-control.control (绑定与状态).
+servers:
+  - url: http://127.0.0.1:8792/api/device-control/v1
+    description: Loopback lab default. Non-loopback hosts are refused.
+tags:
+  - name: device-control.discover
+    description: 设备发现. Health and capability discovery.
+  - name: device-control.pair
+    description: 设备配对. One-shot pair challenge and device query for the service subject.
+  - name: device-control.control
+    description: 绑定与状态. Apply binding, stop/revoke, and status sync.
+security:
+  - serviceBasic: []
+paths:
+  /health:
+    get:
+      tags: [device-control.discover]
+      summary: Health and protocol version
+      responses:
+        "200":
+          description: ok, protocol device-control.v1, firmwareUrl null, executable false
+        "401":
+          description: service basic missing or rejected
+  /capabilities:
+    get:
+      tags: [device-control.discover]
+      summary: Supported features for the three hardware entries
+      responses:
+        "200":
+          description: protocol, entries, features. flash and massFlash are false.
+        "401":
+          description: service basic missing or rejected
+  /pair-challenges:
+    post:
+      tags: [device-control.pair]
+      summary: Create a short-lived one-shot challenge bound to the service subject and deviceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId]
+              properties:
+                deviceId:
+                  type: string
+      responses:
+        "201":
+          description: challengeId, initiator, expiresAtMs, and a secret returned once
+        "400":
+          description: browser identity field rejected
+        "403":
+          description: device owned by another service subject
+  /pair-challenges/{challengeId}/verify:
+    post:
+      tags: [device-control.pair]
+      summary: Verify the one-shot secret. Three failures lock the challenge.
+      parameters:
+        - name: challengeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId, secret]
+              properties:
+                deviceId:
+                  type: string
+                secret:
+                  type: string
+      responses:
+        "200":
+          description: paired true
+        "401":
+          description: secret rejected and the attempt counter incremented
+        "403":
+          description: expired, locked, or bound to another device
+        "409":
+          description: challenge already used
+  /devices:
+    get:
+      tags: [device-control.pair]
+      summary: List devices paired to the authenticated service subject
+      responses:
+        "200":
+          description: devices owned by this subject. Other subjects are omitted.
+        "400":
+          description: query identity fields such as userSubject are rejected
+  /devices/{deviceId}:
+    get:
+      tags: [device-control.pair]
+      summary: Query one device for the authenticated service subject
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          description: device summary
+        "404":
+          description: not paired to this subject
+  /devices/{deviceId}/binding:
+    post:
+      tags: [device-control.control]
+      summary: Apply an OpenBot grant reference. The platform does not mint authorizationRef.
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyBinding"
+      responses:
+        "200":
+          description: applyStatus accepted, then applying, then active or failed. restrictedAuth is not echoed.
+        "400":
+          description: browser identity field rejected
+        "403":
+          description: pair required
+    get:
+      tags: [device-control.control]
+      summary: Query apply status
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          description: authorizationRef, bindingVersion, applyStatus
+        "404":
+          description: binding missing or device not visible to this subject
+  /devices/{deviceId}/revoke:
+    post:
+      tags: [device-control.control]
+      summary: Stop sessions, play, tools, and credentials
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          description: sessionsStopped, playStopped, toolsStopped, credentialsCleared
+  /devices/{deviceId}/status:
+    post:
+      tags: [device-control.control]
+      summary: Sync online, lastSeen, capabilities, and a firmware label
+      description: >
+        eventId dedupes. The same eventId and body replay the stored snapshot
+        with duplicate true. The same eventId and a different body is
+        status_conflict. A new eventId must use a greater version or the call
+        is status_version. firmware is a label. firmwareUrl is rejected.
+        ota.flash and ota.massFlash are rejected.
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusSync"
+      responses:
+        "200":
+          description: stored snapshot, firmwareUrl null
+        "409":
+          description: status_conflict or status_version
+    get:
+      tags: [device-control.control]
+      summary: Read the last synced status
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          description: last snapshot
+components:
+  securitySchemes:
+    serviceBasic:
+      type: http
+      scheme: basic
+      description: Service client id and secret. Not a browser user, tenant, or digital human id.
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    ApplyBinding:
+      type: object
+      required: [authorizationRef, bindingVersion, restrictedAuth]
+      properties:
+        authorizationRef:
+          type: string
+          description: OpenBot grant ref as received. This API does not invent one.
+        bindingVersion:
+          type: integer
+          minimum: 1
+        restrictedAuth:
+          type: string
+          minLength: 16
+          description: Opaque service credential. Stored, not returned.
+    StatusSync:
+      type: object
+      required: [eventId, version, online, lastSeen, capabilities, firmware]
+      properties:
+        eventId:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        online:
+          type: boolean
+        lastSeen:
+          type: string
+          format: date-time
+        capabilities:
+          type: array
+          items:
+            type: string
+        firmware:
+          type: string
+          description: Reported label only. Not a download URL.

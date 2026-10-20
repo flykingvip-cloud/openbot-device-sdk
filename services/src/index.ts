@@ -16,6 +16,16 @@ export {
 } from "./ota-config.ts";
 export type { LabDeviceConfig, LabDeviceCredential, LabOtaConfigServer, LabPairingNext } from "./ota-config.ts";
 export { LabPlayQueue, mockAsrTranscript, startLabVoiceServer } from "./lab-voice.ts";
+export {
+  DEVICE_CONTROL_PREFIX,
+  DEVICE_CONTROL_PROTOCOL,
+  HARDWARE_ENTRIES,
+  DeviceControl,
+  DeviceControlError,
+  rejectBrowserIdentity,
+  startDeviceControlServer,
+} from "./device-control.ts";
+export type { ApplyStatus, BindingView, DeviceSummary, ServiceClient, StopReport } from "./device-control.ts";
 export type { LabAbortReport, LabVoiceServer } from "./lab-voice.ts";
 export type {
   BindInput,

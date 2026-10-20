@@ -59,6 +59,8 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 
 `flash()` 和 `massFlash()` 一定会失败。这里不会生产烧录，也不会批量刷机，也不会把 `https://api.tenclass.net/xiaozhi/ota/` 当作本平台入口。
 
+给 OpenBot UI 的设备控制面是另一组 loopback HTTP，前缀 `/api/device-control/v1`，见 [docs/device-control.md](docs/device-control.md)。调用方是服务端 Basic，不接受浏览器声明的用户、租户或数字人 id。配对挑战留在设备平台。三条草稿条目是设备发现、设备配对、绑定与状态，给 Agent B 冻结。纵向连接器在草稿 PR #10，本接口不依赖那份未合并代码。`authorizationRef` 只保存 OpenBot 交来的值。
+
 ## 开发
 
 ```bash
@@ -70,6 +72,7 @@ npm run sim
 npm run ota-config -- --help
 npm run voice -- --help
 npm run live-stub -- --help
+npm run device-control -- --help
 ```
 
 控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。实验语音见 [docs/lab-voice.md](docs/lab-voice.md)。
@@ -102,6 +105,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 - [docs/lab-voice.md](docs/lab-voice.md)
 - [docs/lab-camera.md](docs/lab-camera.md)
 - [docs/live-stub.md](docs/live-stub.md)
+- [docs/device-control.md](docs/device-control.md)
 - [docs/a5-console-sim.md](docs/a5-console-sim.md)
 - [docs/integration/b1.md](docs/integration/b1.md)
 - [docs/integration/b2.md](docs/integration/b2.md)
