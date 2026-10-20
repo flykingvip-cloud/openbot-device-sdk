@@ -7,6 +7,7 @@ export {
   OPENBOT_CONTRACT_REPO,
   OPENBOT_CONTRACT_SHA,
   PREVIOUS_CONTRACT_SHA,
+  PR9_SQUASH_CONTRACT_SHA,
   PR8_SQUASH_CONTRACT_SHA,
   PR7_SQUASH_CONTRACT_SHA,
   PR7_PREMERGE_CONTRACT_SHA,
@@ -44,11 +45,18 @@ export { loadStandInDocument, parseStandInDocument, standInApi } from "./stand-i
 export type { StandInApi, StandInConsumerChecks, StandInDocument } from "./stand-in.ts";
 export {
   GRANT_CREDENTIAL_HEADER,
+  STUB_AUTHORIZATION_CODE_ENV,
   STUB_AUTHORIZATION_REF_ENV,
   STUB_BINDING_VERSION_ENV,
+  STUB_CODE_VERIFIER_ENV,
   STUB_CONSENT_PASSWORD_ENV,
   STUB_CONSENT_USER_ENV,
   STUB_DEVICE_ID_ENV,
+  STUB_AUTH_STATE_ENV,
+  STUB_REDIRECT_URI_ENV,
+  STUB_SCOPES_ENV,
+  STUB_SERVICE_AUDIENCE_ENV,
+  TEST_MODE_ENV,
   STUB_DIGITAL_HUMAN_ID_ENV,
   STUB_GRANT_CREDENTIAL_ENV,
   STUB_SERVICE_PASSWORD_ENV,
@@ -70,3 +78,12 @@ export {
   resolveAgentSession,
 } from "./agent-session.ts";
 export type { AgentSession } from "./agent-session.ts";
+export { parseStubConfig } from "./stub-config.ts";
+export type {
+  StubAssistantDraft,
+  StubClientDraft,
+  StubConfigDraft,
+  StubConsentClient,
+  StubDigitalHumanDraft,
+  StubServiceClient,
+} from "./stub-config.ts";

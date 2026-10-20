@@ -15,7 +15,11 @@ npm run voice -- --help
 
 服务端 hello 的 `transport` 是 `websocket`，`session_id` 就是本地 B2 会话。协议版本原样回显。
 
-`listen` 的 `stop` 或 `detect` 调用 `finishUtterance`。这是本地模拟 ASR，不是 OpenBot 对话，也不会调用 grants、conversations 或 runs。没有真实音频解码。识别文本默认是 `lab-transcript`，也可以在 `stop` 里带 `text`，或在二进制帧里发送以 `ASR:` 开头的说明。识别结果会写入本地 B2 stand-in 的会话事件 `user.turn`，并先发 `stt`。token 过期后不会再走 `finishUtterance`。B2–B5 仍是 stand-in。
+`listen` 的 `stop` 或 `detect` 调用 `finishUtterance`。识别文本默认是 `lab-transcript`，也可以在 `stop` 里带 `text`，或在二进制帧里发送以 `ASR:` 开头的说明。用户文本会写入本地 B2 stand-in 的 `user.turn`，并先发 `stt`。token 过期后不会再走 `finishUtterance`。
+
+只有 `OPENBOT_DEVICE_DH_TEST_MODE=1` 且没有配齐 live stub 时，助手回复才是本地模拟：`stt` 和 `tts` 都标 `dialogue: sim`，`source: sim`。这不是 OpenBot 对话。`finishUtterance` 会把这段 ASR 文本拿去播占位 TTS。没设这个变量、也没配 stub 时，返回 `dialogue_unavailable`，不播 ASR 文本。
+
+设置了 stub URL、service Basic 和 `X-OpenBot-Grant-Credential` 之后，`finishUtterance` 把用户文本提交给 OpenBot stub（grant、conversation、带 `Idempotency-Key` 的 turn、run SSE）。助手 TTS 只使用 `assistant.visible` 和 `assistant.final` 里的文本，并标 `dialogue: openbot`。不会把 ASR 文本假装成 OpenBot 的助手话。打断会 `POST /runs/{runId}/cancel`，`reason` 为 `barge_in`。凭证不全或 stub 未配置时，live 测试跳过，那不是端到端通过。B2–B5 的本地 stand-in 仍在。样例客户端口令见 openbot-vp `staging.md`，不写入本仓库。
 
 下行 TTS 是 `OB-OPUS-PLACEHOLDER` 二进制，不是 Opus 包，也不链接 libopus。
 

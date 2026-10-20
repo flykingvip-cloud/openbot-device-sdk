@@ -11,7 +11,14 @@
 3. `PUT /api/integrations/v1/media/uploads/{ticket}`，校验 PNG/JPEG 魔数和宽高。
 4. `POST /api/integrations/v1/device-tool-requests/{requestId}/result`，带 `MediaRef`：`mediaId`、`contentType`、宽高、`byteLength`、sha256 `checksum`。
 
-`authorizationRef` 和 `bindingVersion` 必须和当前绑定一致。吊销之后，新的结果是 `camera_revoked`，协议错误码是 `LATE_RESULT`，同时标 `AUTH_REVOKED`。已经用同一把 `Idempotency-Key` 和同一份结果体接受过的提交，再次提交得到 `duplicate: true`，这不是迟到结果。同一把键配不同的结果体得到 `IDEMPOTENCY_CONFLICT`。
+`authorizationRef` 和 `bindingVersion` 必须和当前绑定一致。吊销之后，新的结果是 `camera_revoked`，协议错误码是 `LATE_RESULT`，同时标 `AUTH_REVOKED`。
+
+结果 POST 的幂等跟 PR #11 的视觉过程一致：
+
+- 视觉还在进行时，同一把 `Idempotency-Key` 和同一份 body 返回处理中的接受（`status: processing`，`inflight: true`，`duplicate: true`）。这次重放不再拉媒体，也不再跑视觉。
+- 同一把键配不同的 body 得到 `IDEMPOTENCY_CONFLICT`。
+- 完成后，同一把键和同一份 body 重放最终响应（`duplicate: true`），这不是 `LATE_RESULT`。
+- 视觉进行中取消或关闭，记录的不是 `status: ok`。
 
 取消把这次请求标成 `CANCELLED`。同一台设备上还有进行中的拍摄时，后一次是 `CAMERA_BUSY`。`timeoutAtMs` 已到则是 `TIMEOUT`。
 

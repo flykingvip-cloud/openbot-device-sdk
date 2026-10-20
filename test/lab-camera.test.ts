@@ -8,6 +8,7 @@ import {
   acceptToolRequest,
   runLabCameraCapture,
   startLabMediaServer,
+  type CameraCaptureResult,
   type CameraToolRequest,
   type ToolResultBody,
   LabCameraSession,
@@ -132,6 +133,57 @@ test("result idempotency replays the same body and conflicts on a different body
       ),
     (error: unknown) => error instanceof LabMediaError && error.code === "IDEMPOTENCY_CONFLICT",
   );
+});
+
+test("in-flight camera result replays the processing accept, then the final response", () => {
+  const control = plane();
+  const request = bound(control);
+  const session = new LabCameraSession(control, { now: () => 1_700_000_000_000 });
+  const captured = session.capture(request);
+  const body: ToolResultBody = {
+    requestId: "req-inflight",
+    authorizationRef: request.authorizationRef,
+    bindingVersion: request.bindingVersion,
+    deviceId: request.deviceId,
+    status: "ok",
+    errorCode: null,
+    result: captured.result,
+  };
+  let inflight: CameraCaptureResult | undefined;
+  const finished = session.submitResult(body, "vision-1", {
+    onProcessing: () => {
+      inflight = session.submitResult(body, "vision-1");
+      assert.throws(
+        () => session.submitResult({ ...body, requestId: "req-other" }, "vision-1"),
+        (error: unknown) => error instanceof LabMediaError && error.code === "IDEMPOTENCY_CONFLICT",
+      );
+    },
+  });
+  assert.equal(inflight?.duplicate, true);
+  assert.equal(inflight?.inflight, true);
+  assert.equal(inflight?.status, "processing");
+  assert.equal(inflight?.result, null);
+  assert.equal(finished.status, "ok");
+  assert.equal(finished.duplicate, false);
+  assert.equal(finished.inflight, undefined);
+  const finalReplay = session.submitResult(body, "vision-1");
+  assert.equal(finalReplay.duplicate, true);
+  assert.equal(finalReplay.inflight, undefined);
+  assert.equal(finalReplay.status, "ok");
+  assert.equal(finalReplay.result?.checksum, captured.result?.checksum);
+  assert.notEqual(finalReplay.errorCode, "LATE_RESULT");
+
+  const closed = session.submitResult({ ...body, requestId: "req-close" }, "vision-close", {
+    onProcessing: () => {
+      session.cancel("req-close");
+    },
+  });
+  assert.equal(closed.status, "cancelled");
+  assert.equal(closed.result, null);
+  const closedReplay = session.submitResult({ ...body, requestId: "req-close" }, "vision-close");
+  assert.equal(closedReplay.duplicate, true);
+  assert.equal(closedReplay.status, "cancelled");
+  assert.notEqual(closedReplay.status, "ok");
 });
 
 test("cancel, busy, and timeout stop the lab capture before an ok result", () => {

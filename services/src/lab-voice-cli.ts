@@ -96,6 +96,9 @@ function helpText(): string {
     `  合约针 ${OPENBOT_CONTRACT_SHA}`,
     `  配置服务读取 ${LAB_VOICE_WSS_ENV} 后，已绑定设备的 voiceWssUrl 改用该地址`,
     "  未设置时实验配置仍是 wss://lab.invalid/voice",
+    "  本地模拟要显式设置 OPENBOT_DEVICE_DH_TEST_MODE=1，并标明 dialogue: sim",
+    "  没设 TEST_MODE、也没配 stub 时，不会把 ASR 文本播成助手话",
+    "  设置 stub URL、service Basic 和 grant 后，助手话只来自 assistant.visible / assistant.final",
     "  不连接 api.tenclass.net，也不烧录固件",
   ].join("\n");
 }

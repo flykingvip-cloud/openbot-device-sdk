@@ -26,6 +26,30 @@ export const STUB_BINDING_VERSION_ENV = "OPENBOT_STUB_BINDING_VERSION";
 
 export const STUB_DEVICE_ID_ENV = "OPENBOT_STUB_DEVICE_ID";
 
+/** One-time code for `POST /grants/exchange`. Value comes from the consent flow, not this repo. */
+export const STUB_AUTHORIZATION_CODE_ENV = "OPENBOT_STUB_AUTHORIZATION_CODE";
+
+/** PKCE verifier paired with that authorization code. Not stored in this repo. */
+export const STUB_CODE_VERIFIER_ENV = "OPENBOT_STUB_CODE_VERIFIER";
+
+/** Redirect URI sent to exchange. Not a secret, but not hardcoded to a production host. */
+export const STUB_REDIRECT_URI_ENV = "OPENBOT_STUB_REDIRECT_URI";
+
+/**
+ * Local sim speech is off unless this is exactly `1`.
+ * A configured stub still uses the live connector.
+ */
+export const TEST_MODE_ENV = "OPENBOT_DEVICE_DH_TEST_MODE";
+
+/** `serviceAudience` on `POST /consent/authorization-codes`. Not a registry lookup. */
+export const STUB_SERVICE_AUDIENCE_ENV = "OPENBOT_STUB_SERVICE_AUDIENCE";
+
+/** Comma-separated `scopes` for the consent authorization-code request. */
+export const STUB_SCOPES_ENV = "OPENBOT_STUB_SCOPES";
+
+/** `state` echoed by the authorization-code response. */
+export const STUB_AUTH_STATE_ENV = "OPENBOT_STUB_AUTH_STATE";
+
 /** Header name from the vendored `grantCredential` security scheme. */
 export const GRANT_CREDENTIAL_HEADER = "X-OpenBot-Grant-Credential";
 

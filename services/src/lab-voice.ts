@@ -13,6 +13,13 @@ import {
   DECODE_QUEUE_BUDGET_MS,
 } from "../../adapters/metalio/src/index.ts";
 import { SessionBook } from "../../integrations/openbot-b2/src/index.ts";
+import {
+  liveDialogueMode,
+  liveTurnInputFromEnv,
+  runLiveTurn,
+  type AssistantSpeech,
+  type LiveRunHandle,
+} from "../../integrations/openbot-longitudinal/src/index.ts";
 import { ControlPlane } from "./control-plane.ts";
 import { WsFrameDecoder, encodeServerFrame, takeSocket, websocketAccept } from "./voice-ws.ts";
 
@@ -74,9 +81,11 @@ export interface LabVoiceServer {
 
 export function startLabVoiceServer(
   plane: ControlPlane,
-  options: { host?: string; port?: number } = {},
+  options: { host?: string; port?: number; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch } = {},
 ): Promise<LabVoiceServer> {
   const host = options.host ?? "127.0.0.1";
+  const env = options.env ?? process.env;
+  const fetchImpl = options.fetchImpl ?? fetch;
   const book = new SessionBook({ plane });
   const sockets = new Set<Duplex>();
   const server = createServer();
@@ -86,7 +95,7 @@ export function startLabVoiceServer(
     socket.on("close", () => {
       sockets.delete(socket);
     });
-    acceptVoiceUpgrade(plane, book, req, socket);
+    acceptVoiceUpgrade(plane, book, req, socket, env, fetchImpl);
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -107,7 +116,14 @@ export function startLabVoiceServer(
   });
 }
 
-function acceptVoiceUpgrade(plane: ControlPlane, book: SessionBook, req: IncomingMessage, socket: Duplex): void {
+function acceptVoiceUpgrade(
+  plane: ControlPlane,
+  book: SessionBook,
+  req: IncomingMessage,
+  socket: Duplex,
+  env: NodeJS.ProcessEnv,
+  fetchImpl: typeof fetch,
+): void {
   const deviceId = headerValue(req, "device-id");
   const clientId = headerValue(req, "client-id");
   const versionHeader = headerValue(req, "protocol-version") ?? String(PROTOCOL_VERSION_DEFAULT);
@@ -133,7 +149,7 @@ function acceptVoiceUpgrade(plane: ControlPlane, book: SessionBook, req: Incomin
       "",
     ].join("\r\n"),
   );
-  attachVoiceSession(plane, book, socket, deviceId, version, token);
+  attachVoiceSession(plane, book, socket, deviceId, version, token, env, fetchImpl);
 }
 
 function attachVoiceSession(
@@ -143,6 +159,8 @@ function attachVoiceSession(
   deviceId: string,
   version: number,
   token: string,
+  env: NodeJS.ProcessEnv,
+  fetchImpl: typeof fetch,
 ): void {
   const decoder = new WsFrameDecoder();
   const play = new LabPlayQueue();
@@ -155,6 +173,9 @@ function attachVoiceSession(
   let speaking = false;
   let turn = 0;
   let closed = false;
+  let activeRun: LiveRunHandle | undefined;
+  const speechQueue: AssistantSpeech[] = [];
+  let drainingSpeech = false;
 
   const sendText = (body: unknown) => {
     socket.write(encodeServerFrame(1, Buffer.from(JSON.stringify(body))));
@@ -287,7 +308,11 @@ function attachVoiceSession(
     }
   }
 
-  /** Local mock ASR plus placeholder TTS. Not an OpenBot dialogue. */
+  /**
+   * Local mock ASR. With no live stub this also speaks that transcript and is labeled `sim`.
+   * A configured stub speaks only `assistant.visible` / `assistant.final`. It does not
+   * turn the ASR text into OpenBot dialogue.
+   */
   function finishUtterance(): void {
     if (refuseIfCredentialDead()) {
       return;
@@ -297,33 +322,126 @@ function attachVoiceSession(
     listenText = "";
     binaryNote = "";
     turn += 1;
-    book.append(sessionId, { eventId: `turn-${turn}`, type: "user.turn" });
-    sendText({ type: "stt", session_id: sessionId, text });
-    beginTts(text);
+    const turnIndex = turn;
+    book.append(sessionId, { eventId: `turn-${turnIndex}`, type: "user.turn" });
+    let mode: "sim" | "live" | "off";
+    try {
+      mode = liveDialogueMode(env);
+    } catch (error) {
+      sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "sim" });
+      reportLiveFailure(error);
+      return;
+    }
+    if (mode === "off") {
+      sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "off" });
+      sendText({
+        type: "error",
+        code: "dialogue_unavailable",
+        source: "off",
+        dialogue: "off",
+        detail: "OPENBOT_DEVICE_DH_TEST_MODE=1 is required for local sim; the live connector is not configured",
+      });
+      return;
+    }
+    if (mode === "sim") {
+      sendText({ type: "stt", session_id: sessionId, text, source: "sim", dialogue: "sim" });
+      beginTts(text, "sim");
+      return;
+    }
+    sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "sim" });
+    void speakFromOpenBot(text, turnIndex);
   }
 
-  function beginTts(text: string): void {
+  function speakFromOpenBot(text: string, turnIndex: number): void {
+    let input;
+    try {
+      const binding = plane.getBinding(deviceId);
+      input = liveTurnInputFromEnv(env, {
+        deviceId,
+        digitalHumanId: binding?.digitalHumanId ?? "",
+        text,
+        turnId: `turn-${turnIndex}`,
+        idempotencyKey: `voice-${deviceId}-${sessionId}-${turnIndex}`,
+      });
+    } catch (error) {
+      reportLiveFailure(error);
+      return;
+    }
+    void runLiveTurn(input, {
+      env,
+      fetchImpl,
+      onRun: (run) => {
+        activeRun = run;
+        if (aborted || closed) {
+          void run.cancel().catch((error: unknown) => {
+            reportLiveFailure(error);
+          });
+        }
+      },
+      onSpeech: (speech) => {
+        if (aborted || closed) {
+          return;
+        }
+        speechQueue.push(speech);
+        drainSpeech();
+      },
+    }).catch((error: unknown) => {
+      reportLiveFailure(error);
+    });
+  }
+
+  function drainSpeech(): void {
+    if (drainingSpeech || aborted || closed) {
+      return;
+    }
+    const next = speechQueue.shift();
+    if (next === undefined) {
+      return;
+    }
+    drainingSpeech = true;
+    beginTts(next.text, "openbot", () => {
+      drainingSpeech = false;
+      drainSpeech();
+    });
+  }
+
+  function reportLiveFailure(error: unknown): void {
+    if (closed) {
+      return;
+    }
+    const detail = error instanceof Error ? error.message : String(error);
+    sendText({ type: "error", code: "live_stub", source: "openbot", dialogue: "openbot", detail });
+  }
+
+  function beginTts(text: string, source: "sim" | "openbot", onDone?: () => void): void {
     aborted = false;
     speaking = true;
     play.start();
-    sendText({ type: "tts", state: "start", session_id: sessionId, text });
+    const dialogue = source === "sim" ? "sim" : "openbot";
+    sendText({ type: "tts", state: "start", session_id: sessionId, text, source, dialogue });
     const payload = Buffer.from(OPUS_PLACEHOLDER_MAGIC);
     let index = 0;
+    const finish = () => {
+      onDone?.();
+    };
     const step = () => {
       if (refuseIfCredentialDead()) {
         speaking = false;
+        finish();
         return;
       }
       if (!speaking || aborted || index >= TTS_FRAME_COUNT) {
         if (speaking && !aborted) {
-          sendText({ type: "tts", state: "stop", session_id: sessionId });
+          sendText({ type: "tts", state: "stop", session_id: sessionId, source, dialogue });
           speaking = false;
         }
+        finish();
         return;
       }
       const queued = play.sent(payload);
       if (queued !== "queued") {
         speaking = false;
+        finish();
         return;
       }
       sendBinary(payload);
@@ -339,6 +457,14 @@ function attachVoiceSession(
     }
     aborted = true;
     speaking = false;
+    speechQueue.length = 0;
+    const run = activeRun;
+    activeRun = undefined;
+    if (run !== undefined) {
+      void run.cancel().catch((error: unknown) => {
+        reportLiveFailure(error);
+      });
+    }
     const report = play.abort(sessionId);
     sendText({
       type: "lab.abort",

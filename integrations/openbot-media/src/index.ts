@@ -69,11 +69,13 @@ export interface CameraCaptureResult {
   authorizationRef: string;
   bindingVersion: number;
   deviceId: string;
-  status: "ok" | "denied" | "cancelled" | "busy" | "timeout" | "failed";
+  status: "ok" | "denied" | "cancelled" | "busy" | "timeout" | "failed" | "processing";
   errorCode: string | null;
   authError: "AUTH_REVOKED" | null;
   cameraCode: "camera_revoked" | null;
   duplicate: boolean;
+  /** True only for the accept recorded while vision has not finished. */
+  inflight?: true;
   result: LabMediaRef | null;
 }
 
@@ -114,6 +116,11 @@ interface IdempotencyHit {
 
 export interface LabCameraHooks {
   afterTicket?: () => void;
+}
+
+export interface ResultIdempotencyHooks {
+  /** Runs after the processing accept is stored and before vision finishes. */
+  onProcessing?: () => void;
 }
 
 export function labCameraFixture(contentType: LabMediaContentType): Buffer {
@@ -212,50 +219,97 @@ export class LabCameraSession {
     this.cancelled.add(requestId);
   }
 
-  submitResult(body: ToolResultBody, idempotencyKey?: string): CameraCaptureResult {
+  submitResult(body: ToolResultBody, idempotencyKey?: string, hooks: ResultIdempotencyHooks = {}): CameraCaptureResult {
     const digest = resultDigest(body);
     if (idempotencyKey !== undefined) {
       if (!IDEMPOTENCY_KEY.test(idempotencyKey)) {
         throw new LabMediaError("idempotency_key", "Idempotency-Key is invalid", 400);
       }
-      const existing = this.idempotency.get(idempotencyKey);
-      if (existing) {
-        if (existing.digest !== digest) {
-          throw new LabMediaError("IDEMPOTENCY_CONFLICT", "idempotency key was already used for a different result", 409);
+      const replay = this.replayResult(idempotencyKey, digest);
+      if (replay) {
+        return replay;
+      }
+      this.idempotency.set(idempotencyKey, { digest, result: this.processingAccept(body) });
+      hooks.onProcessing?.();
+    }
+    try {
+      const request = bodyToRequest(body);
+      const refused = this.refusal(request);
+      if (refused) {
+        this.finishIdempotency(idempotencyKey, digest, refused);
+        return refused;
+      }
+      if (body.status === "ok") {
+        if (!body.result) {
+          throw new LabMediaError("MEDIA_INVALID", "ok result requires MediaRef", 400);
         }
-        return { ...structuredClone(existing.result), duplicate: true };
+        const stored = [...this.tickets.values()].find((ticket) => ticket.mediaId === body.result?.mediaId);
+        if (!stored?.stored || stored.stored.checksum !== body.result.checksum) {
+          throw new LabMediaError("MEDIA_INVALID", "MediaRef does not match an uploaded fixture", 400);
+        }
       }
+      const accepted: CameraCaptureResult = {
+        requestId: body.requestId,
+        authorizationRef: body.authorizationRef,
+        bindingVersion: body.bindingVersion,
+        deviceId: body.deviceId,
+        status: body.status,
+        errorCode: body.errorCode ?? null,
+        authError: null,
+        cameraCode: null,
+        duplicate: false,
+        result: body.result ?? null,
+      };
+      this.finishIdempotency(idempotencyKey, digest, accepted);
+      return accepted;
+    } catch (error) {
+      this.dropProcessing(idempotencyKey);
+      throw error;
     }
-    const request = bodyToRequest(body);
-    const refused = this.refusal(request);
-    if (refused) {
-      return refused;
+  }
+
+  private replayResult(idempotencyKey: string, digest: string): CameraCaptureResult | undefined {
+    const existing = this.idempotency.get(idempotencyKey);
+    if (!existing) {
+      return undefined;
     }
-    if (body.status === "ok") {
-      if (!body.result) {
-        throw new LabMediaError("MEDIA_INVALID", "ok result requires MediaRef", 400);
-      }
-      const stored = [...this.tickets.values()].find((ticket) => ticket.mediaId === body.result?.mediaId);
-      if (!stored?.stored || stored.stored.checksum !== body.result.checksum) {
-        throw new LabMediaError("MEDIA_INVALID", "MediaRef does not match an uploaded fixture", 400);
-      }
+    if (existing.digest !== digest) {
+      throw new LabMediaError("IDEMPOTENCY_CONFLICT", "idempotency key was already used for a different result", 409);
     }
-    const accepted: CameraCaptureResult = {
+    return { ...structuredClone(existing.result), duplicate: true };
+  }
+
+  private processingAccept(body: ToolResultBody): CameraCaptureResult {
+    return {
       requestId: body.requestId,
       authorizationRef: body.authorizationRef,
       bindingVersion: body.bindingVersion,
       deviceId: body.deviceId,
-      status: body.status,
-      errorCode: body.errorCode ?? null,
+      status: "processing",
+      errorCode: null,
       authError: null,
       cameraCode: null,
       duplicate: false,
-      result: body.result ?? null,
+      inflight: true,
+      result: null,
     };
-    if (idempotencyKey !== undefined) {
-      this.idempotency.set(idempotencyKey, { digest, result: structuredClone(accepted) });
+  }
+
+  private finishIdempotency(idempotencyKey: string | undefined, digest: string, result: CameraCaptureResult): void {
+    if (idempotencyKey === undefined) {
+      return;
     }
-    return accepted;
+    this.idempotency.set(idempotencyKey, { digest, result: structuredClone(result) });
+  }
+
+  private dropProcessing(idempotencyKey: string | undefined): void {
+    if (idempotencyKey === undefined) {
+      return;
+    }
+    const existing = this.idempotency.get(idempotencyKey);
+    if (existing?.result.inflight === true) {
+      this.idempotency.delete(idempotencyKey);
+    }
   }
 
   handle(input: {

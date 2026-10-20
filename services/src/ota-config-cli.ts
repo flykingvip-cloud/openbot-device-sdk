@@ -99,7 +99,7 @@ function helpText(): string {
     "  实验用配置 HTTP。公开配置只有 voice 占位、本进程入口和配对提示",
     "  token 的签发、读取和刷新必须带设备身份。默认只绑定 loopback",
     "  默认状态文件 var/ota-config.sqlite（已 gitignore）。以 .json 结尾时用 JSON",
-    `  合约针 ${OPENBOT_CONTRACT_SHA}（openbot-vp main，PR #10 squash）`,
+    `  合约针 ${OPENBOT_CONTRACT_SHA}（openbot-vp main，PR #11 squash）`,
     `  已作废、不是 officialMergeSha: ${PREVIOUS_CONTRACT_SHA}`,
     "  routesAligned=true 只表示静态 OpenAPI 对齐，不是端到端联调",
     "  firmwareUrl 固定 null。flash 与 massFlash 不在这里执行",

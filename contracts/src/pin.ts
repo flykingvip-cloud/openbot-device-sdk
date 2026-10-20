@@ -1,9 +1,11 @@
 /**
  * Contract pin for Agent A.
  *
- * `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` is the squash merge of
- * https://github.com/flykingvip-cloud/openbot-vp/pull/10 on `main`
- * (gatewayAgentId mapping, session isolation, cancel abort, accept-first).
+ * `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` is the squash merge of
+ * https://github.com/flykingvip-cloud/openbot-vp/pull/11 on `main`
+ * (in-flight tool-result idempotency during vision: same key and body is a
+ * duplicate, a different body is IDEMPOTENCY_CONFLICT, and a completed call
+ * replays the final response).
  * Frozen field names and the `/api/integrations/v1` prefix are unchanged.
  *
  * The OpenAPI document from that commit is vendored at
@@ -14,7 +16,8 @@
  * `npm run live-stub` can call a loopback stub when OPENBOT_DEVICE_DH_STUB_URL is set.
  *
  * Invalidated and must not be used as the pin:
- * - `41b7561222775e4ad00b056e2a535c7f950bcbe9` (PR #9 squash; immediate predecessor)
+ * - `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` (PR #10 squash; immediate predecessor)
+ * - `41b7561222775e4ad00b056e2a535c7f950bcbe9` (PR #9 squash)
  * - `536a963b119f0a00675516401c52dd0f6187b196` (PR #8 squash)
  * - `8abdc7f9a0ae49c340de712fbba235b1064f6c7d` (PR #7 squash)
  * - `554910d835f3baadb1d753532ad510b1b477be09` (pre-merge tip of PR #7)
@@ -22,14 +25,17 @@
  *
  * The short pin `68e062e` on `upbeyond/openbot` is obsolete and must not be read.
  */
-export const OPENBOT_CONTRACT_SHA = "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a";
+export const OPENBOT_CONTRACT_SHA = "d22db4755311a1a0df9fb5e3d5da60554f8ef6a5";
 
 export const OPENBOT_CONTRACT_REPO = "https://github.com/flykingvip-cloud/openbot-vp";
 
-export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/10";
+export const OPENBOT_CONTRACT_PR = "https://github.com/flykingvip-cloud/openbot-vp/pull/11";
 
-/** Immediate predecessor. Invalidated: PR #9 squash, replaced by PR #10. */
-export const PREVIOUS_CONTRACT_SHA = "41b7561222775e4ad00b056e2a535c7f950bcbe9";
+/** Immediate predecessor. Invalidated: PR #10 squash, replaced by PR #11. */
+export const PREVIOUS_CONTRACT_SHA = "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a";
+
+/** PR #9 squash. Also invalidated. */
+export const PR9_SQUASH_CONTRACT_SHA = "41b7561222775e4ad00b056e2a535c7f950bcbe9";
 
 /** PR #8 squash. Also invalidated. */
 export const PR8_SQUASH_CONTRACT_SHA = "536a963b119f0a00675516401c52dd0f6187b196";
@@ -45,6 +51,7 @@ export const OLDER_CONTRACT_SHA = "dd6c85cae086d90c519ff1be7ad08e20d4644bba";
 
 export const INVALIDATED_CONTRACT_SHAS = [
   PREVIOUS_CONTRACT_SHA,
+  PR9_SQUASH_CONTRACT_SHA,
   PR8_SQUASH_CONTRACT_SHA,
   PR7_SQUASH_CONTRACT_SHA,
   PR7_PREMERGE_CONTRACT_SHA,
