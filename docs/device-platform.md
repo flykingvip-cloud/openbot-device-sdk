@@ -2,7 +2,7 @@
 
 这是给 Agent B 冻结字段用的草稿。它不是灰度发布，也不是真机交付。`flash()` 和 `massFlash()` 仍然失败，这里不打开生产 OTA。
 
-OpenBot 的冻结契约仍是 `/api/integrations/v1`。当前针是 `fe1e2c2a81fd3814e8588a854695640ca56db64b`（openbot-vp PR #14）。冻结字段名没有改。OpenAPI 里没有配对挑战字段，也没有客户端注册接口。
+OpenBot 的冻结契约仍是 `/api/integrations/v1`。当前针是 `feeac51863d6d88ba83c7e16029b2911209bb0d0`（openbot-vp PR #15）。冻结字段名没有改。OpenAPI 里没有配对挑战字段，也没有客户端注册接口。
 
 设备归属和一次性配对挑战由设备平台在进入 OpenBot 授权流程之前完成。连接器不得把 `pairChallenge`、`pairingCode`、`pairingChallenge`、`ownershipProof` 或 `pairNonce` 放进 `/api/integrations/v1` 的请求。
 
