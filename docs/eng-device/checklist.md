@@ -4,13 +4,13 @@
 
 ## 合约
 
-- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `490a69669c0cf9e68173ceb25cfa89c99438dfb9`
-- [ ] 文档写明这是 openbot-vp `main` 上 PR #16 的 squash merge
-- [ ] `previousSha` 为已作废的 PR #15 squash `feeac51863d6d88ba83c7e16029b2911209bb0d0`，它不是 `officialMergeSha`
-- [ ] `fe1e2c2a81fd3814e8588a854695640ca56db64b`、`92826116a9b00a596ae2360d8a643d6148050e3c`、`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`、`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`、`41b7561222775e4ad00b056e2a535c7f950bcbe9`、`536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
+- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `d7f0e1d834dc9ccece6723f6d71dea8fa0cfcb1f`
+- [ ] 文档写明这是 openbot-vp `main` 上 PR #17 的 squash merge
+- [ ] `previousSha` 为已作废的 PR #16 squash `490a69669c0cf9e68173ceb25cfa89c99438dfb9`，它不是 `officialMergeSha`
+- [ ] `feeac51863d6d88ba83c7e16029b2911209bb0d0`、`fe1e2c2a81fd3814e8588a854695640ca56db64b`、`92826116a9b00a596ae2360d8a643d6148050e3c`、`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`、`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`、`41b7561222775e4ad00b056e2a535c7f950bcbe9`、`536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 仍是路径对齐用的入库字节；PR #16 未改冻结字段名和前缀。路径和 SSE 事件名一致时 `routesAligned` 为 true。该标志只表示静态对齐，不是端到端联调通过
+- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 仍是路径对齐用的入库字节；PR #17 未改冻结字段名和前缀。路径和 SSE 事件名一致时 `routesAligned` 为 true。该标志只表示静态对齐，不是端到端联调通过
 - [ ] 实验配置带 `gatewayAgentId`；默认会话键是 `device-dh:<digitalHumanId>:<conversationId>`；只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 才接受 UI 会话键
 - [ ] B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`；B0 与 B2–B5 的本地 stand-in 仍在
 - [ ] `npm run live-stub` 只对 loopback 的 `GET /healthz`（根路径）和可选的数字人 / 合成图摄像头发请求

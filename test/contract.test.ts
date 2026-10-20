@@ -22,6 +22,7 @@ import {
   PR8_SQUASH_CONTRACT_SHA,
   PR10_SQUASH_CONTRACT_SHA,
   PR11_SQUASH_CONTRACT_SHA,
+  PR16_SQUASH_CONTRACT_SHA,
   PR15_SQUASH_CONTRACT_SHA,
   PR14_SQUASH_CONTRACT_SHA,
   PR12_SQUASH_CONTRACT_SHA,
@@ -40,16 +41,17 @@ import {
 test("OPENBOT_CONTRACT_SHA file matches the pin", () => {
   const file = readFileSync(new URL("../contracts/OPENBOT_CONTRACT_SHA", import.meta.url), "utf8").trim();
   assert.equal(file, OPENBOT_CONTRACT_SHA);
-  assert.equal(file, "490a69669c0cf9e68173ceb25cfa89c99438dfb9");
+  assert.equal(file, "d7f0e1d834dc9ccece6723f6d71dea8fa0cfcb1f");
   assert.equal(OPENBOT_CONTRACT_REPO, "https://github.com/flykingvip-cloud/openbot-vp");
-  assert.equal(OPENBOT_CONTRACT_PR, "https://github.com/flykingvip-cloud/openbot-vp/pull/16");
+  assert.equal(OPENBOT_CONTRACT_PR, "https://github.com/flykingvip-cloud/openbot-vp/pull/17");
   assert.equal(CONTRACT_PIN.status, "main");
   assert.equal(CONTRACT_PIN.merge, "squash");
   assert.equal(CONTRACT_PIN.officialMergeSha, OPENBOT_CONTRACT_SHA);
   assert.equal(CONTRACT_PIN.previousSha, PREVIOUS_CONTRACT_SHA);
   assert.equal(CONTRACT_PIN.previousShaStatus, "invalidated");
-  assert.equal(PREVIOUS_CONTRACT_SHA, "feeac51863d6d88ba83c7e16029b2911209bb0d0");
-  assert.equal(PR15_SQUASH_CONTRACT_SHA, PREVIOUS_CONTRACT_SHA);
+  assert.equal(PREVIOUS_CONTRACT_SHA, "490a69669c0cf9e68173ceb25cfa89c99438dfb9");
+  assert.equal(PR16_SQUASH_CONTRACT_SHA, PREVIOUS_CONTRACT_SHA);
+  assert.equal(PR15_SQUASH_CONTRACT_SHA, "feeac51863d6d88ba83c7e16029b2911209bb0d0");
   assert.equal(PR14_SQUASH_CONTRACT_SHA, "fe1e2c2a81fd3814e8588a854695640ca56db64b");
   assert.equal(PR12_SQUASH_CONTRACT_SHA, "92826116a9b00a596ae2360d8a643d6148050e3c");
   assert.equal(PR11_SQUASH_CONTRACT_SHA, "d22db4755311a1a0df9fb5e3d5da60554f8ef6a5");
@@ -61,6 +63,7 @@ test("OPENBOT_CONTRACT_SHA file matches the pin", () => {
   assert.equal(OLDER_CONTRACT_SHA, "dd6c85cae086d90c519ff1be7ad08e20d4644bba");
   assert.deepEqual(INVALIDATED_CONTRACT_SHAS, [
     PREVIOUS_CONTRACT_SHA,
+    PR15_SQUASH_CONTRACT_SHA,
     PR14_SQUASH_CONTRACT_SHA,
     PR12_SQUASH_CONTRACT_SHA,
     PR11_SQUASH_CONTRACT_SHA,
@@ -87,7 +90,8 @@ test("B0-B5 stand-in stays local and does not flash", () => {
   assert.equal(doc.contract.deviceApisPresent, "reported-stub");
   assert.equal(doc.contract.routesAligned, true);
   assert.equal(doc.contract.access, "vendored");
-  assert.equal(doc.contract.officialMergeSha, "490a69669c0cf9e68173ceb25cfa89c99438dfb9");
+  assert.equal(doc.contract.officialMergeSha, "d7f0e1d834dc9ccece6723f6d71dea8fa0cfcb1f");
+  assert.notEqual(doc.contract.officialMergeSha, "490a69669c0cf9e68173ceb25cfa89c99438dfb9");
   assert.notEqual(doc.contract.officialMergeSha, "feeac51863d6d88ba83c7e16029b2911209bb0d0");
   assert.notEqual(doc.contract.officialMergeSha, "fe1e2c2a81fd3814e8588a854695640ca56db64b");
   assert.notEqual(doc.contract.officialMergeSha, "92826116a9b00a596ae2360d8a643d6148050e3c");
@@ -98,6 +102,7 @@ test("B0-B5 stand-in stays local and does not flash", () => {
   assert.equal(doc.contract.previousSha, PREVIOUS_CONTRACT_SHA);
   assert.equal(doc.contract.previousShaStatus, "invalidated");
   assert.deepEqual(doc.contract.invalidatedShas, [
+    "490a69669c0cf9e68173ceb25cfa89c99438dfb9",
     "feeac51863d6d88ba83c7e16029b2911209bb0d0",
     "fe1e2c2a81fd3814e8588a854695640ca56db64b",
     "92826116a9b00a596ae2360d8a643d6148050e3c",
