@@ -118,7 +118,8 @@ function acceptVoiceUpgrade(plane: ControlPlane, book: SessionBook, req: Incomin
     return;
   }
   const token = bearer(headerValue(req, "authorization"));
-  if (!authorized(plane, deviceId, token)) {
+  const decision = plane.assessConnectionCredential(deviceId, token);
+  if (!decision.ok || token === undefined) {
     rejectUpgrade(socket, 401, "Unauthorized");
     return;
   }
@@ -132,19 +133,7 @@ function acceptVoiceUpgrade(plane: ControlPlane, book: SessionBook, req: Incomin
       "",
     ].join("\r\n"),
   );
-  attachVoiceSession(plane, book, socket, deviceId, version);
-}
-
-function authorized(plane: ControlPlane, deviceId: string, token: string | undefined): boolean {
-  if (token === undefined || plane.isRevoked(deviceId)) {
-    return false;
-  }
-  const credential = plane.getConnectionCredential(token);
-  const binding = plane.getBinding(deviceId);
-  if (!credential || !binding || credential.deviceId !== deviceId) {
-    return false;
-  }
-  return credential.authorizationRef === binding.authorizationRef && credential.bindingVersion === binding.bindingVersion;
+  attachVoiceSession(plane, book, socket, deviceId, version, token);
 }
 
 function attachVoiceSession(
@@ -153,6 +142,7 @@ function attachVoiceSession(
   socket: Duplex,
   deviceId: string,
   version: number,
+  token: string,
 ): void {
   const decoder = new WsFrameDecoder();
   const play = new LabPlayQueue();
@@ -164,6 +154,7 @@ function attachVoiceSession(
   let aborted = false;
   let speaking = false;
   let turn = 0;
+  let closed = false;
 
   const sendText = (body: unknown) => {
     socket.write(encodeServerFrame(1, Buffer.from(JSON.stringify(body))));
@@ -194,6 +185,9 @@ function attachVoiceSession(
         continue;
       }
       if (frame.opcode === 2 && listening) {
+        if (refuseIfCredentialDead()) {
+          return;
+        }
         const text = frame.payload.toString("utf8");
         if (text.startsWith("ASR:")) {
           binaryNote = text;
@@ -202,7 +196,26 @@ function attachVoiceSession(
     }
   });
 
+  function refuseIfCredentialDead(): boolean {
+    if (closed) {
+      return true;
+    }
+    const decision = plane.assessConnectionCredential(deviceId, token);
+    if (decision.ok) {
+      return false;
+    }
+    closed = true;
+    speaking = false;
+    aborted = true;
+    sendText({ type: "error", code: decision.code });
+    socket.end();
+    return true;
+  }
+
   function handleText(raw: string): void {
+    if (refuseIfCredentialDead()) {
+      return;
+    }
     let message: Record<string, unknown>;
     try {
       const parsed: unknown = JSON.parse(raw);
@@ -274,7 +287,11 @@ function attachVoiceSession(
     }
   }
 
+  /** Local mock ASR plus placeholder TTS. Not an OpenBot dialogue. */
   function finishUtterance(): void {
+    if (refuseIfCredentialDead()) {
+      return;
+    }
     listening = false;
     const text = mockAsrTranscript({ listenText, binaryNote });
     listenText = "";
@@ -293,6 +310,10 @@ function attachVoiceSession(
     const payload = Buffer.from(OPUS_PLACEHOLDER_MAGIC);
     let index = 0;
     const step = () => {
+      if (refuseIfCredentialDead()) {
+        speaking = false;
+        return;
+      }
       if (!speaking || aborted || index >= TTS_FRAME_COUNT) {
         if (speaking && !aborted) {
           sendText({ type: "tts", state: "stop", session_id: sessionId });

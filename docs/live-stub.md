@@ -72,6 +72,6 @@ npm run live-stub -- --camera
 
 ## 数字人会话
 
-当前针是 PR #10 的 `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`。`41b75612…` 已作废。路径和 SSE 事件名仍与入库 OpenAPI 一致，`routesAligned` 保持 true。
+当前针是 PR #10 的 `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`。`41b75612…` 已作废。路径和 SSE 事件名仍与入库 OpenAPI 一致，`routesAligned` 保持 true。这只是静态对齐，不是端到端联调通过。B2–B5 仍是本地 stand-in。
 
 数字人配置要带 `gatewayAgentId`（`OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID`，实验配置里没设置则为 null）。默认代理会话键是 `device-dh:<digitalHumanId>:<conversationId>`。只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 时才改用 UI 会话键。冻结字段名不变。本地 B2 `sessionId` 不是这把键。

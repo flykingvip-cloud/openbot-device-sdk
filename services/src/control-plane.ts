@@ -53,6 +53,29 @@ export interface ConnectionCredential {
   bindingVersion: number;
 }
 
+export type ConnectionCredentialRefusal =
+  | "credential_missing"
+  | "credential_revoked"
+  | "credential_expired"
+  | "credential_stale";
+
+export type ConnectionCredentialAssessment =
+  | { ok: true; code: "ok"; credential: ConnectionCredential }
+  | { ok: false; code: ConnectionCredentialRefusal };
+
+function credentialRefusalMessage(code: ConnectionCredentialRefusal): string {
+  if (code === "credential_expired") {
+    return "connection credential expired";
+  }
+  if (code === "credential_stale") {
+    return "connection credential does not match the frozen binding";
+  }
+  if (code === "credential_revoked") {
+    return "revoked devices cannot use connection credentials";
+  }
+  return "connection credential is not active";
+}
+
 export interface Revocation {
   deviceId: string;
   revokedAtMs: number;
@@ -312,6 +335,8 @@ export class ControlPlane {
   /**
    * Issues one short-lived connection token for a bound device.
    * Any previous token for that device is cleared. Revoked devices are refused.
+   * In-process callers already hold the control plane. HTTP issue must use
+   * `issueConnectionCredentialWithProof` so a device id alone cannot mint a token.
    */
   issueConnectionCredential(deviceId: string): ConnectionCredential {
     if (this.revoked.has(deviceId)) {
@@ -323,6 +348,50 @@ export class ControlPlane {
     this.credentials.set(credential.token, credential);
     this.persist();
     return { ...credential };
+  }
+
+  /**
+   * HTTP issue path. The redeemed claim code is the lab device proof.
+   * A device id without that code does not mint a token.
+   */
+  issueConnectionCredentialWithProof(deviceId: string, claimCode: string): ConnectionCredential {
+    if (this.revoked.has(deviceId)) {
+      throw new ControlPlaneError("credential_revoked", "revoked devices cannot issue connection credentials");
+    }
+    const claim = this.claims.get(deviceId);
+    if (!claim || claim.status !== "claimed" || claim.code !== claimCode) {
+      throw new ControlPlaneError("device_proof", "device identity was not verified");
+    }
+    return this.issueConnectionCredential(deviceId);
+  }
+
+  /**
+   * Full check for using a connection credential: revoke, device, binding, and expiry.
+   * Refresh does not call this. An expired token may still be refreshed.
+   */
+  assessConnectionCredential(deviceId: string, token: string | undefined): ConnectionCredentialAssessment {
+    if (this.revoked.has(deviceId)) {
+      return { ok: false, code: "credential_revoked" };
+    }
+    if (token === undefined || token.length === 0) {
+      return { ok: false, code: "credential_missing" };
+    }
+    const credential = this.credentials.get(token);
+    if (!credential || credential.deviceId !== deviceId) {
+      return { ok: false, code: "credential_missing" };
+    }
+    const binding = this.bindings.get(deviceId);
+    if (
+      !binding ||
+      credential.authorizationRef !== binding.authorizationRef ||
+      credential.bindingVersion !== binding.bindingVersion
+    ) {
+      return { ok: false, code: "credential_stale" };
+    }
+    if (this.now() >= credential.expiresAtMs) {
+      return { ok: false, code: "credential_expired" };
+    }
+    return { ok: true, code: "ok", credential: { ...credential } };
   }
 
   /**
@@ -417,20 +486,9 @@ export class ControlPlane {
     if (!Number.isFinite(input.capturedAtMs)) {
       throw new ControlPlaneError("camera_time", "capturedAtMs must be finite");
     }
-    const credential = this.credentials.get(input.token);
-    if (!credential || credential.deviceId !== input.deviceId) {
-      throw new ControlPlaneError("credential_missing", "connection credential is not active");
-    }
-    if (this.now() >= credential.expiresAtMs) {
-      throw new ControlPlaneError("credential_expired", "connection credential expired");
-    }
-    const binding = this.bindings.get(input.deviceId);
-    if (
-      !binding ||
-      credential.authorizationRef !== binding.authorizationRef ||
-      credential.bindingVersion !== binding.bindingVersion
-    ) {
-      throw new ControlPlaneError("credential_stale", "connection credential does not match the frozen binding");
+    const decision = this.assessConnectionCredential(input.deviceId, input.token);
+    if (!decision.ok) {
+      throw new ControlPlaneError(decision.code, credentialRefusalMessage(decision.code));
     }
     return {
       accepted: true,

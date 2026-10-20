@@ -15,7 +15,7 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 | 更早作废 | `536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09`、`dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
 | 作废 | `68e062e` @ `upbeyond/openbot` |
 
-该提交的 OpenAPI 已放在 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，`routesAligned` 为 true。`npm run live-stub` 在 `OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787` 上探测根路径 `GET /healthz`，能力路径仍在 `/api/integrations/v1`。未设置该环境变量时不访问网络。数字人 GET 需要 service Basic 和 grant 凭证，未设置时跳过。B0 与 B2–B5 的本地 stand-in 处理器还在，没有改成 stub 的服务端。`41b75612…` 不能再当作 `officialMergeSha`。
+该提交的 OpenAPI 已放在 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，`routesAligned` 为 true。这个标志只表示静态 OpenAPI 对齐，不是端到端联调通过，也不是灰度或真机通过。`npm run live-stub` 在 `OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787` 上探测根路径 `GET /healthz`，能力路径仍在 `/api/integrations/v1`。未设置该环境变量时不访问网络。数字人 GET 需要 service Basic 和 grant 凭证，未设置时跳过。B0 与 B2–B5 的本地 stand-in 处理器还在，没有改成 stub 的服务端。`41b75612…` 不能再当作 `officialMergeSha`。
 
 数字人配置带 `gatewayAgentId`（来自 `OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID`，未设置时为 null）。默认代理会话键是 `device-dh:<digitalHumanId>:<conversationId>`。只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 时才改用调用方给出的 UI 会话键。这不改冻结字段名，也不替换本地 B2 的 `sessionId`。
 
@@ -55,7 +55,7 @@ Agent A 的设备平台草稿。日常开发只在 [flykingvip-cloud/openbot-dev
 
 1. 6 位认领码，通过后才能绑定。
 2. 绑定写入冻结字段。再次绑定会更换 `authorizationRef`、递增 `bindingVersion`。`assistant` 字段名不变，新资料替换旧值。
-3. OTA 只能给单台已绑定设备记一条不可执行的版本记录。`firmwareUrl` 为空，`force` 为 0。实验配置 HTTP 同样不提供固件 URL。
+3. OTA 只能给单台已绑定设备记一条不可执行的版本记录。`firmwareUrl` 为空，`force` 为 0。实验配置 HTTP 同样不提供固件 URL。公开的 `GET /devices/{deviceId}/config` 不签发 token，也不返回授权资料。token 的签发要出示已核销认领码，读取要出示未过期 token。该进程默认只绑 loopback，也不广告 grants / conversations / runs。
 
 `flash()` 和 `massFlash()` 一定会失败。这里不会生产烧录，也不会批量刷机，也不会把 `https://api.tenclass.net/xiaozhi/ota/` 当作本平台入口。
 
@@ -86,7 +86,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 
 这一段仍是协议 / 模拟脚手架。A0–A5 没有灰度完成，本仓库也不烧录板子。
 
-- 真实 Opus、ASR、TTS。现在只有 `OB-OPUS-PLACEHOLDER`，没有 libopus，打断残留仍是 2400 ms。
+- 真实 Opus、ASR、TTS。现在只有 `OB-OPUS-PLACEHOLDER`，没有 libopus，打断残留仍是 2400 ms。实验语音里的 `finishUtterance` 是本地模拟，不是 OpenBot 对话。
 - Metalio 固件补丁，以及工程机上的编译证据。基线 SHA 仍是 `ca3aa3fa027ff7dad2adf0c2d03c4f24aa838950`，本环境没有 ESP-IDF 编译。
 - 生产级设备身份。认领码、短时 token 和 stub Basic 都是实验用的，不是量产身份。
 - 真实 OV2710 采集。实验摄像头只用 1×1 PNG/JPEG 夹具。

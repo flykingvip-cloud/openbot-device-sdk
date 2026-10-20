@@ -2,7 +2,7 @@
 
 `OPENBOT_CONTRACT_SHA` = `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`
 
-这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/10> squash merge 到 `main` 之后的正式提交。冻结字段名和能力路由前缀 `/api/integrations/v1` 没有改。该提交的 OpenAPI 已放入 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，所以 `routesAligned=true`。
+这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/10> squash merge 到 `main` 之后的正式提交。冻结字段名和能力路由前缀 `/api/integrations/v1` 没有改。该提交的 OpenAPI 已放入 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，所以 `routesAligned=true`。这只是静态对齐，不是端到端联调通过。B2–B5 仍是本地 stand-in。
 
 `previousSha` = `41b7561222775e4ad00b056e2a535c7f950bcbe9`，状态 `invalidated`。那是 PR #9 的 squash merge，不能再当作 `officialMergeSha`。
 

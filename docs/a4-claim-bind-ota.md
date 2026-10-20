@@ -45,6 +45,6 @@ Metalio 自己的 `Ota::Upgrade` 会 GET `firmware.url` 并写入下一分区。
 
 ## 重连与吊销
 
-`issueConnectionCredential` 给已绑定设备发一个短时 token。`refreshConnectionCredential` 是本地 stub：只在当前 token 仍有效且设备未吊销时轮换它，不访问网络。过期 token 可以刷新，但不能用来提交摄像头结果。
+`issueConnectionCredential` 给已绑定设备发一个短时 token，供控制台这种进程内调用使用。实验配置 HTTP 不能只凭 `deviceId` 调用它。`POST /devices/{deviceId}/credentials` 要核验已核销的认领码。`GET` 凭证使用完整检查：过期、吊销、设备、`bindingVersion`。`refreshConnectionCredential` 是本地 stub：只在出示的 token 仍是该设备的当前 token 且设备未吊销时轮换它，不访问网络。过期 token 可以刷新，但不能用来连接实验语音或提交摄像头结果。配置 HTTP 默认只绑定 loopback。
 
 `revoke` 清掉该设备的短时 token，并留下吊销标记。冻结字段名不动。吊销之后到达的摄像头结果一律 `camera_revoked`，不管 `capturedAtMs` 是不是更早。吊销同时关掉该设备还开着的会话，旧会话上的 append / pull 不再进入原来的 run。`rebind` 会丢掉剩余 token、清掉吊销标记、轮换 `authorizationRef`，并同样关掉旧会话。

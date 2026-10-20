@@ -10,7 +10,7 @@
 - [ ] `536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 是 `bc3d9fda…` 的文件；路径和 SSE 事件名一致时 `routesAligned` 为 true
+- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 是 `bc3d9fda…` 的文件；路径和 SSE 事件名一致时 `routesAligned` 为 true。该标志只表示静态对齐，不是端到端联调通过
 - [ ] 实验配置带 `gatewayAgentId`；默认会话键是 `device-dh:<digitalHumanId>:<conversationId>`；只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 才接受 UI 会话键
 - [ ] B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`；B0 与 B2–B5 的本地 stand-in 仍在
 - [ ] `npm run live-stub` 只对 loopback 的 `GET /healthz`（根路径）和可选的数字人 / 合成图摄像头发请求
@@ -26,7 +26,7 @@
 - [ ] 打断路径不调用 ResetDecoder
 - [ ] 满队列残留仍是 40 × 60 ms = 2400 ms
 - [ ] 没有把 `api.tenclass.net` 配成语音或 OTA 生产入口
-- [ ] 真实 ASR / TTS 仍未接入；`npm run voice` 只是本机模拟，TTS 仍是 `OB-OPUS-PLACEHOLDER`
+- [ ] 真实 ASR / TTS 仍未接入；`npm run voice` 只是本机模拟，TTS 仍是 `OB-OPUS-PLACEHOLDER`；`finishUtterance` 不是 OpenBot 对话
 - [ ] 未设置 `OPENBOT_LAB_VOICE_WSS_URL` 时，实验配置里的 voice WSS 仍是 `wss://lab.invalid/voice`
 
 ## A3 媒体与工具
@@ -45,7 +45,7 @@
 - [ ] `flash()` 与 `massFlash()` 仍然抛错
 - [ ] 实验 OTA 记录和配置 HTTP 的 `firmwareUrl` 仍是 null，`force` 仍是 0
 - [ ] 设备固件烧录仍未实现
-- [ ] `npm run ota-config` 只提供本机实验配置（认领状态、绑定版本、短时 token、voice 占位），不是生产 OTA
+- [ ] `npm run ota-config` 的公开配置只有非敏感 URL 和配对提示；token 只在核验设备身份后签发；进程不广告 grants / conversations / runs；默认只绑 loopback
 - [ ] 拒绝量产、批量、fleet，以及十班和 C5 托管包主机
 - [ ] `npm test` 与 `npm run typecheck` 为绿
 
