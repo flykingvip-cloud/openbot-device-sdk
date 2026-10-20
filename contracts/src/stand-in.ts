@@ -29,7 +29,7 @@ export interface StandInConsumerChecks {
 export interface StandInDocument {
   kind: "openbot-device-api-stand-in";
   status: "local-stand-in";
-  routeSource: "local-mock-access-limited";
+  routeSource: "local-stand-in";
   contract: {
     sha: typeof OPENBOT_CONTRACT_SHA;
     repo: typeof OPENBOT_CONTRACT_REPO;
@@ -42,8 +42,8 @@ export interface StandInDocument {
     invalidatedShas: typeof INVALIDATED_CONTRACT_SHAS;
     deviceApiRange: "B0-B5";
     deviceApisPresent: "reported-stub";
-    routesAligned: false;
-    access: "unreadable-404";
+    routesAligned: true;
+    access: "vendored";
     obsolete: {
       shaPrefix: "68e062e";
       repo: "https://github.com/upbeyond/openbot";
@@ -91,14 +91,14 @@ export function parseStandInDocument(value: unknown): StandInDocument {
   if (!isRecord(value) || value.kind !== "openbot-device-api-stand-in" || value.status !== "local-stand-in") {
     throw new Error("stand-in document kind mismatch");
   }
-  if (value.routeSource !== "local-mock-access-limited") {
-    throw new Error("stand-in routes must stay local until the main tree can be read");
+  if (value.routeSource !== "local-stand-in") {
+    throw new Error("B0-B5 stand-in table must stay local even when the OpenAPI is vendored");
   }
   if (!isRecord(value.contract) || value.contract.sha !== OPENBOT_CONTRACT_SHA || value.contract.repo !== OPENBOT_CONTRACT_REPO) {
     throw new Error("stand-in document is not pinned to flykingvip-cloud/openbot-vp");
   }
   if (value.contract.pr !== OPENBOT_CONTRACT_PR || value.contract.status !== "main" || value.contract.merge !== "squash") {
-    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 8 on main");
+    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 9 on main");
   }
   if (value.contract.officialMergeSha !== OPENBOT_CONTRACT_SHA || value.contract.previousSha !== PREVIOUS_CONTRACT_SHA) {
     throw new Error("official merge SHA must be the current pin; previousSha must record the invalidated prior pin");
@@ -113,10 +113,10 @@ export function parseStandInDocument(value: unknown): StandInDocument {
   if (
     value.contract.deviceApiRange !== "B0-B5" ||
     value.contract.deviceApisPresent !== "reported-stub" ||
-    value.contract.routesAligned !== false ||
-    value.contract.access !== "unreadable-404"
+    value.contract.routesAligned !== true ||
+    value.contract.access !== "vendored"
   ) {
-    throw new Error("stand-in routes must stay local until the main tree can be read");
+    throw new Error("stand-in pin must record the vendored OpenAPI alignment");
   }
   if (typeof value.contract.note !== "string" || value.contract.note.length === 0) {
     throw new Error("stand-in note is missing");

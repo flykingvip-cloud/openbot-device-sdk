@@ -13,24 +13,22 @@ export const DIGITAL_HUMAN_PROFILE_PATH = `${INTEGRATIONS_API_PREFIX}/digital-hu
 export const OPENAPI_SOURCE_URL =
   `https://raw.githubusercontent.com/flykingvip-cloud/openbot-vp/${OPENBOT_CONTRACT_SHA}/docs/integrations/device-digital-human/openapi.yaml`;
 
-/**
- * The raw file was requested and returned HTTP 404. Consumer paths below are
- * transcribed from Agent B's message, not from vendored OpenAPI bytes.
- * `routesAligned` stays false until those bytes are in-tree and match.
- */
+/** Bytes of `contracts/openbot/device-digital-human.openapi.yaml` are the pin tree. */
 export const OPENAPI_FETCH = {
   sha: OPENBOT_CONTRACT_SHA,
   url: OPENAPI_SOURCE_URL,
-  httpStatus: 404,
-  vendored: false,
-  routesAligned: false,
+  httpStatus: 200,
+  vendored: true,
+  routesAligned: true,
 } as const;
 
-export const ALIGNMENT_GAPS = [
-  "openapi.yaml bytes were not vendored because the pin tree returned HTTP 404",
-  "B1 live GET uses /api/integrations/v1/digital-humans/{digitalHumanId}; local reads still use the control plane",
-  "B0 and B2–B5 stand-in paths remain lab mocks and are not the grants, conversations, runs, or media routes",
-  "run and device SSE event names are transcribed only; no run pipeline emits them",
+/**
+ * Not route mismatches. The vendored paths match; these handlers are still absent.
+ * Empty when nothing further is listed. Route mismatches belong in `alignmentGaps`.
+ */
+export const IMPLEMENTATION_GAPS = [
+  "B0 and B2-B5 stand-in handlers still use lab paths and do not serve the vendored grants, conversations, runs, or media routes",
+  "SSE event names match the OpenAPI enum, and no run pipeline emits them",
 ] as const;
 
 export interface ConsumerRoute {
@@ -60,6 +58,7 @@ export const CONSUMER_ROUTES = [
     group: "grants",
     method: "POST",
     path: `${INTEGRATIONS_API_PREFIX}/grants/exchange`,
+    idempotencyKey: true,
     underIntegrationsPrefix: true,
   },
   {
@@ -108,19 +107,19 @@ export const CONSUMER_ROUTES = [
   {
     group: "conversations",
     method: "GET",
-    path: `${INTEGRATIONS_API_PREFIX}/conversations/{id}`,
+    path: `${INTEGRATIONS_API_PREFIX}/conversations/{conversationId}`,
     underIntegrationsPrefix: true,
   },
   {
     group: "conversations",
     method: "POST",
-    path: `${INTEGRATIONS_API_PREFIX}/conversations/{id}/close`,
+    path: `${INTEGRATIONS_API_PREFIX}/conversations/{conversationId}/close`,
     underIntegrationsPrefix: true,
   },
   {
     group: "conversations",
     method: "POST",
-    path: `${INTEGRATIONS_API_PREFIX}/conversations/{id}/turns`,
+    path: `${INTEGRATIONS_API_PREFIX}/conversations/{conversationId}/turns`,
     idempotencyKey: true,
     underIntegrationsPrefix: true,
   },
@@ -183,6 +182,100 @@ export const DEVICE_EVENT_TYPES = [
   "binding.updated",
   "run.cancelled",
 ] as const;
+
+/** EventEnvelope.type order in the vendored OpenAPI. */
+export const EVENT_ENVELOPE_TYPES = [
+  ...RUN_EVENT_TYPES,
+  "authorization.revoked",
+  "binding.updated",
+] as const;
+
+export interface OpenApiAlignment {
+  aligned: boolean;
+  gaps: string[];
+}
+
+/** Compares consumer routes and SSE enums with a vendored OpenAPI document. */
+export function alignConsumerRoutes(openapiYaml: string): OpenApiAlignment {
+  const paths = openapiPaths(openapiYaml);
+  const events = openapiEventEnvelopeTypes(openapiYaml);
+  const gaps: string[] = [];
+  const consumerPaths = CONSUMER_ROUTES.filter((route) => route.underIntegrationsPrefix).map((route) =>
+    route.path.slice(INTEGRATIONS_API_PREFIX.length),
+  );
+  if (paths.length !== consumerPaths.length) {
+    gaps.push(`path count ${consumerPaths.length} != OpenAPI ${paths.length}`);
+  }
+  const consumerSet = new Set(consumerPaths);
+  const openSet = new Set(paths);
+  for (const path of paths) {
+    if (!consumerSet.has(path)) {
+      gaps.push(`OpenAPI path missing from consumer mirror: ${path}`);
+    }
+  }
+  for (const path of consumerPaths) {
+    if (!openSet.has(path)) {
+      gaps.push(`consumer path missing from OpenAPI: ${path}`);
+    }
+  }
+  if (events.length !== EVENT_ENVELOPE_TYPES.length || events.some((event, index) => event !== EVENT_ENVELOPE_TYPES[index])) {
+    gaps.push("EventEnvelope type enum does not match RUN and device SSE names");
+  }
+  for (const event of DEVICE_EVENT_TYPES) {
+    if (!events.includes(event)) {
+      gaps.push(`device SSE type missing from OpenAPI: ${event}`);
+    }
+  }
+  for (const event of RUN_EVENT_TYPES) {
+    if (!events.includes(event)) {
+      gaps.push(`run SSE type missing from OpenAPI: ${event}`);
+    }
+  }
+  return { aligned: gaps.length === 0, gaps };
+}
+
+function openapiPaths(yaml: string): string[] {
+  const paths: string[] = [];
+  let inPaths = false;
+  for (const line of yaml.split("\n")) {
+    if (line === "paths:") {
+      inPaths = true;
+      continue;
+    }
+    if (!inPaths) {
+      continue;
+    }
+    if (line.length > 0 && !line.startsWith(" ")) {
+      break;
+    }
+    const match = /^  (\/[^:]+):$/.exec(line);
+    if (match?.[1] !== undefined) {
+      paths.push(match[1]);
+    }
+  }
+  return paths;
+}
+
+function openapiEventEnvelopeTypes(yaml: string): string[] {
+  const lines = yaml.split("\n");
+  const start = lines.findIndex((line) => line === "    EventEnvelope:");
+  if (start < 0) {
+    return [];
+  }
+  const enumAt = lines.slice(start).findIndex((line) => line === "          enum:");
+  if (enumAt < 0) {
+    return [];
+  }
+  const events: string[] = [];
+  for (const line of lines.slice(start + enumAt + 1)) {
+    const match = /^            - (.+)$/.exec(line);
+    if (!match?.[1]) {
+      break;
+    }
+    events.push(match[1]);
+  }
+  return events;
+}
 
 export function digitalHumanProfileUrl(baseUrl: string, digitalHumanId: string): string {
   const path = DIGITAL_HUMAN_PROFILE_PATH.replace("{digitalHumanId}", encodeURIComponent(digitalHumanId));

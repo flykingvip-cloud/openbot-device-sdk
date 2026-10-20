@@ -26,7 +26,7 @@ test("console demo persists revoke and refuses flash", () => {
   const state = join(dir, "console.sqlite");
   const demo = runConsoleDemo(state);
   assert.equal(demo.contractSha, OPENBOT_CONTRACT_SHA);
-  assert.equal(demo.contractSha, "536a963b119f0a00675516401c52dd0f6187b196");
+  assert.equal(demo.contractSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
   assert.equal(demo.claimCode, "042315");
   assert.equal(demo.bindingVersion, 2);
   assert.equal(demo.assistantPreserved, true);
@@ -53,7 +53,7 @@ test("console demo persists revoke and refuses flash", () => {
 test("simulator covers B1-B3 stand-ins without flashing", async () => {
   const dir = mkdtempSync(join(tmpdir(), "openbot-sim-"));
   const report = await runSimulator(join(dir, "sim.sqlite"));
-  assert.equal(report.contractSha, "536a963b119f0a00675516401c52dd0f6187b196");
+  assert.equal(report.contractSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
   assert.equal(report.b1Idempotent, true);
   assert.equal(report.assistantPreserved, true);
   assert.equal(report.idempotentSession, true);
@@ -84,6 +84,7 @@ test("console and sim CLIs print the official main pin", () => {
   const consoleState = join(dir, "console.sqlite");
   const demo = runCli(["console/src/cli.ts", "--state", consoleState]);
   assert.equal(demo.status, 0, demo.stderr);
+  assert.match(demo.stdout, /41b7561222775e4ad00b056e2a535c7f950bcbe9/);
   assert.match(demo.stdout, /536a963b119f0a00675516401c52dd0f6187b196/);
   assert.match(demo.stdout, /8abdc7f9a0ae49c340de712fbba235b1064f6c7d/);
   assert.match(demo.stdout, /554910d835f3baadb1d753532ad510b1b477be09/);

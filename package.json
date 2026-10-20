@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "console": "node --disable-warning=ExperimentalWarning --experimental-strip-types console/src/cli.ts",
     "sim": "node --disable-warning=ExperimentalWarning --experimental-strip-types simulator/src/cli.ts",
-    "ota-config": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/ota-config-cli.ts"
+    "ota-config": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/ota-config-cli.ts",
+    "voice": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/lab-voice-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",

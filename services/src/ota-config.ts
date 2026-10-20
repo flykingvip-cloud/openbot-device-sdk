@@ -3,18 +3,21 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { INTEGRATIONS_API_PREFIX, OPENBOT_CONTRACT_SHA } from "../../contracts/src/index.ts";
 import { ControlPlane } from "./control-plane.ts";
 
-/** Placeholder only. Not an ASR/TTS server and not api.tenclass.net. */
+/** Placeholder used until a lab voice server is advertised. Not api.tenclass.net. */
 export const LAB_VOICE_WSS_URL = "wss://lab.invalid/voice";
+
+/** When set to a loopback ws:// or wss:// URL, claimed config uses that lab voice server. */
+export const LAB_VOICE_WSS_ENV = "OPENBOT_LAB_VOICE_WSS_URL";
 
 const DEVICE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 export interface LabDeviceConfig {
   contractSha: typeof OPENBOT_CONTRACT_SHA;
-  routesAligned: false;
+  routesAligned: true;
   deviceId: string;
   claimStatus: "missing" | "pending" | "claimed";
   revoked: boolean;
-  voiceWssUrl: typeof LAB_VOICE_WSS_URL;
+  voiceWssUrl: string;
   deviceApiUrl: string;
   apiPrefix: typeof INTEGRATIONS_API_PREFIX;
   bindingVersion: number | null;
@@ -32,7 +35,36 @@ export interface LabDeviceConfig {
  * and only while the device is not revoked. `firmwareUrl` stays null.
  * This does not call `flash` or `massFlash`.
  */
-export function buildLabDeviceConfig(plane: ControlPlane, deviceId: string, origin: string): LabDeviceConfig {
+export function resolveLabVoiceWssUrl(env: NodeJS.ProcessEnv, override?: string): string {
+  const raw = override ?? env[LAB_VOICE_WSS_ENV];
+  if (raw === undefined || raw.length === 0 || !isLabVoiceUrl(raw)) {
+    return LAB_VOICE_WSS_URL;
+  }
+  return raw;
+}
+
+function isLabVoiceUrl(value: string): boolean {
+  if (/tenclass/i.test(value)) {
+    return false;
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "ws:" && url.protocol !== "wss:") {
+    return false;
+  }
+  return url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "::1" || url.hostname === "lab.invalid";
+}
+
+export function buildLabDeviceConfig(
+  plane: ControlPlane,
+  deviceId: string,
+  origin: string,
+  options: { env?: NodeJS.ProcessEnv; voiceWssUrl?: string } = {},
+): LabDeviceConfig {
   if (!DEVICE_ID.test(deviceId)) {
     throw new Error("deviceId is required");
   }
@@ -48,11 +80,11 @@ export function buildLabDeviceConfig(plane: ControlPlane, deviceId: string, orig
   }
   return {
     contractSha: OPENBOT_CONTRACT_SHA,
-    routesAligned: false,
+    routesAligned: true,
     deviceId,
     claimStatus,
     revoked,
-    voiceWssUrl: LAB_VOICE_WSS_URL,
+    voiceWssUrl: resolveLabVoiceWssUrl(options.env ?? process.env, options.voiceWssUrl),
     deviceApiUrl: `${origin.replace(/\/$/, "")}${INTEGRATIONS_API_PREFIX}`,
     apiPrefix: INTEGRATIONS_API_PREFIX,
     bindingVersion: binding?.bindingVersion ?? null,

@@ -1,8 +1,926 @@
-# UNFETCHED SLOT — this is not the openbot-vp OpenAPI document.
-# Source: https://raw.githubusercontent.com/flykingvip-cloud/openbot-vp/536a963b119f0a00675516401c52dd0f6187b196/docs/integrations/device-digital-human/openapi.yaml
-# Fetch returned HTTP 404. Do not parse this file as a contract.
-# TODO: replace these bytes with the raw OpenAPI when that tree is readable.
-# routesAligned stays false until the vendored bytes match consumer paths and event enums.
-unfetched: true
-sha: 536a963b119f0a00675516401c52dd0f6187b196
-httpStatus: 404
+openapi: 3.0.3
+info:
+  title: OpenBot device digital-human integrations
+  version: v1
+  description: >
+    Frozen loopback contract. Field names authorizationRef, bindingVersion,
+    digitalHumanId, deviceId, and assistant.* must not be renamed.
+    This stub is not mounted on the production gateway.
+servers:
+  - url: http://127.0.0.1:8787/api/integrations/v1
+    description: Loopback stub. Port defaults from OPENBOT_DEVICE_DH_STUB_PORT.
+tags:
+  - name: grants
+  - name: conversations
+  - name: runs
+  - name: device
+  - name: media
+paths:
+  /consent/authorization-codes:
+    post:
+      tags: [grants]
+      summary: Issue a one-time authorization code
+      security: [{ consentBasic: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthorizationCodeRequest"
+      responses:
+        "201":
+          description: Code issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationCodeResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+  /grants/exchange:
+    post:
+      tags: [grants]
+      summary: Exchange a code for authorizationRef and a one-time credential
+      security: [{ serviceBasic: [] }]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeRequest"
+      responses:
+        "200":
+          description: Grant issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+  /grants/{authorizationRef}:
+    get:
+      tags: [grants]
+      summary: Read grant status and assistant profile
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationRef"
+      responses:
+        "200":
+          description: Grant view. Does not include authorizationCredential.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grant"
+        "404":
+          $ref: "#/components/responses/Error"
+  /grants/{authorizationRef}/revoke:
+    post:
+      tags: [grants]
+      summary: Revoke a grant. Repeat calls stay revoked.
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationRef"
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevokeResponse"
+  /grants/{authorizationRef}/rebind:
+    post:
+      tags: [grants]
+      summary: Consent client bumps bindingVersion and cancels old work
+      security: [{ consentBasic: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationRef"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [digitalHumanId]
+              properties:
+                digitalHumanId:
+                  type: string
+      responses:
+        "200":
+          description: Updated grant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grant"
+  /grants/{authorizationRef}/device-capabilities:
+    put:
+      tags: [device]
+      summary: Submit a device capability snapshot
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationRef"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceCapabilities"
+      responses:
+        "200":
+          description: Accepted and ignored tool names
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceCapabilitiesResult"
+  /grants/{authorizationRef}/device-events:
+    get:
+      tags: [device]
+      summary: Device command SSE
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationRef"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: text/event-stream of tool.request, authorization.revoked, binding.updated, run.cancelled
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventEnvelope"
+  /digital-humans/{digitalHumanId}:
+    get:
+      tags: [grants]
+      summary: Assistant profile for the bound digital human
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - name: digitalHumanId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  digitalHumanId:
+                    type: string
+                  bindingVersion:
+                    type: integer
+                  assistant:
+                    $ref: "#/components/schemas/Assistant"
+  /conversations:
+    post:
+      tags: [conversations]
+      summary: Create a conversation bound to the grant
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversation"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+  /conversations/{conversationId}:
+    get:
+      tags: [conversations]
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+  /conversations/{conversationId}/close:
+    post:
+      tags: [conversations]
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Closed
+  /conversations/{conversationId}/turns:
+    post:
+      tags: [runs]
+      summary: Accept a turn
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TurnRequest"
+      responses:
+        "202":
+          description: Accepted or duplicate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TurnAccepted"
+        "409":
+          $ref: "#/components/responses/Error"
+  /runs/{runId}:
+    get:
+      tags: [runs]
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Run status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+  /runs/{runId}/events:
+    get:
+      tags: [runs]
+      summary: Run event SSE
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventEnvelope"
+        "409":
+          $ref: "#/components/responses/Error"
+  /runs/{runId}/cancel:
+    post:
+      tags: [runs]
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  enum: [barge_in, user, timeout, unbind]
+                turnId:
+                  type: string
+      responses:
+        "200":
+          description: Accept flag is distinct from terminal status. sideEffectsRolledBack is false.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelResponse"
+  /device-tool-requests/{requestId}/result:
+    post:
+      tags: [device]
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToolResult"
+      responses:
+        "200":
+          description: "Result accepted, or the recorded response when Idempotency-Key and body match an accepted result (duplicate true)."
+        "400":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /media/upload-tickets:
+    post:
+      tags: [media]
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, bindingVersion]
+              properties:
+                requestId:
+                  type: string
+                bindingVersion:
+                  type: integer
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png]
+      responses:
+        "201":
+          description: Short-lived upload ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mediaId:
+                    type: string
+                  ticket:
+                    type: string
+                  uploadPath:
+                    type: string
+                  method:
+                    type: string
+                    enum: [PUT]
+                  expiresAt:
+                    type: string
+                    format: date-time
+  /media/uploads/{ticket}:
+    put:
+      tags: [media]
+      summary: Independent upload authenticated by the ticket, not the grant credential
+      parameters:
+        - name: ticket
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Image accepted after magic and dimension checks
+        "400":
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    consentBasic:
+      type: http
+      scheme: basic
+      description: Consent-role client.
+    serviceBasic:
+      type: http
+      scheme: basic
+      description: Service-role client.
+    grantCredential:
+      type: apiKey
+      in: header
+      name: X-OpenBot-Grant-Credential
+  parameters:
+    AuthorizationRef:
+      name: authorizationRef
+      in: path
+      required: true
+      schema:
+        type: string
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Required for turns and tool results. The same key and body replay the accepted response for 24 hours in memory, including a tool result retried after revoke. The same key and a different body returns IDEMPOTENCY_CONFLICT. A duplicate is not LATE_RESULT.
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Last seen sequence or eventId. Expired cursors return CURSOR_EXPIRED.
+  responses:
+    Error:
+      description: Stable business error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+  schemas:
+    Assistant:
+      type: object
+      required: [digitalHumanId, displayName, status]
+      properties:
+        digitalHumanId:
+          type: string
+        displayName:
+          type: string
+        avatar:
+          type: string
+        animationManifestUrl:
+          type: string
+        locale:
+          type: string
+        voiceHint:
+          type: string
+        status:
+          type: string
+          enum: [active, disabled]
+        visibleText:
+          type: string
+        messageId:
+          type: string
+    AuthorizationCodeRequest:
+      type: object
+      required:
+        - serviceAudience
+        - redirectUri
+        - codeChallenge
+        - codeChallengeMethod
+        - digitalHumanId
+        - deviceId
+        - scopes
+        - state
+      properties:
+        serviceAudience:
+          type: string
+        redirectUri:
+          type: string
+        codeChallenge:
+          type: string
+        codeChallengeMethod:
+          type: string
+          enum: [S256]
+        digitalHumanId:
+          type: string
+        deviceId:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        state:
+          type: string
+    AuthorizationCodeResponse:
+      type: object
+      properties:
+        authorizationCode:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        state:
+          type: string
+        digitalHumanId:
+          type: string
+        deviceId:
+          type: string
+    ExchangeRequest:
+      type: object
+      required: [authorizationCode, codeVerifier, redirectUri]
+      properties:
+        authorizationCode:
+          type: string
+        codeVerifier:
+          type: string
+        redirectUri:
+          type: string
+    Grant:
+      type: object
+      required: [authorizationRef, bindingVersion, digitalHumanId, deviceId, assistant]
+      properties:
+        authorizationRef:
+          type: string
+        status:
+          type: string
+          enum: [active, revoked]
+        bindingVersion:
+          type: integer
+        digitalHumanId:
+          type: string
+        deviceId:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        userSubject:
+          type: string
+        tenantId:
+          type: string
+        clientId:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        assistant:
+          $ref: "#/components/schemas/Assistant"
+    ExchangeResponse:
+      allOf:
+        - $ref: "#/components/schemas/Grant"
+        - type: object
+          required: [authorizationCredential]
+          properties:
+            authorizationCredential:
+              type: string
+              description: Returned once. Later calls use X-OpenBot-Grant-Credential.
+            disposition:
+              type: string
+              enum: [accepted, duplicate]
+    RevokeResponse:
+      type: object
+      required: [authorizationRef, bindingVersion, digitalHumanId, deviceId, status]
+      properties:
+        authorizationRef:
+          type: string
+        status:
+          type: string
+          enum: [revoked]
+        bindingVersion:
+          type: integer
+        digitalHumanId:
+          type: string
+        deviceId:
+          type: string
+        revokedAt:
+          type: string
+          format: date-time
+    CreateConversation:
+      type: object
+      properties:
+        authorizationRef:
+          type: string
+        externalConversationId:
+          type: string
+        deviceId:
+          type: string
+        bindingVersion:
+          type: integer
+    Conversation:
+      type: object
+      required: [conversationId, authorizationRef, digitalHumanId, deviceId, bindingVersion]
+      properties:
+        conversationId:
+          type: string
+        authorizationRef:
+          type: string
+        externalConversationId:
+          type: string
+        digitalHumanId:
+          type: string
+        deviceId:
+          type: string
+        bindingVersion:
+          type: integer
+        status:
+          type: string
+          enum: [open, closed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        assistant:
+          $ref: "#/components/schemas/Assistant"
+    TurnRequest:
+      type: object
+      required: [turnId]
+      properties:
+        turnId:
+          type: string
+        text:
+          type: string
+        locale:
+          type: string
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        deviceId:
+          type: string
+        connectionId:
+          type: string
+        idempotencyKey:
+          type: string
+        traceId:
+          type: string
+        input:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [text]
+            text:
+              type: string
+    TurnAccepted:
+      type: object
+      required: [runId, disposition, authorizationRef, bindingVersion, deviceId]
+      properties:
+        runId:
+          type: string
+        turnId:
+          type: string
+        conversationId:
+          type: string
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        deviceId:
+          type: string
+        digitalHumanId:
+          type: string
+        status:
+          type: string
+        disposition:
+          type: string
+          enum: [accepted, duplicate]
+        duplicate:
+          type: boolean
+    Run:
+      type: object
+      required: [runId, authorizationRef, bindingVersion, deviceId, digitalHumanId, status]
+      properties:
+        runId:
+          type: string
+        conversationId:
+          type: string
+        turnId:
+          type: string
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        deviceId:
+          type: string
+        digitalHumanId:
+          type: string
+        status:
+          type: string
+          enum:
+            - accepted
+            - queued
+            - running
+            - waiting_tool
+            - waiting_approval
+            - completed
+            - failed
+            - cancelled
+            - interrupted
+        errorCode:
+          type: string
+          nullable: true
+        retryable:
+          type: boolean
+        assistant:
+          $ref: "#/components/schemas/Assistant"
+    CancelResponse:
+      type: object
+      properties:
+        runId:
+          type: string
+        accepted:
+          type: boolean
+        status:
+          type: string
+        sideEffectsRolledBack:
+          type: boolean
+          enum: [false]
+        reason:
+          type: string
+        duplicate:
+          type: boolean
+    DeviceCapabilities:
+      type: object
+      properties:
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        deviceId:
+          type: string
+        schemaVersion:
+          type: integer
+        capabilitiesVersion:
+          type: integer
+        firmwareVersion:
+          type: string
+        protocolVersion:
+          type: string
+        online:
+          type: boolean
+        tools:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              available:
+                type: boolean
+        camera:
+          type: object
+          properties:
+            formats:
+              type: array
+              items:
+                type: string
+            resolutions:
+              type: array
+              items:
+                type: string
+            maxBytes:
+              type: integer
+            captureWhilePlaying:
+              type: boolean
+    DeviceCapabilitiesResult:
+      type: object
+      properties:
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        deviceId:
+          type: string
+        capabilitiesVersion:
+          type: integer
+        acceptedTools:
+          type: array
+          items:
+            type: string
+        ignoredTools:
+          type: array
+          items:
+            type: string
+    ToolResult:
+      type: object
+      required: [bindingVersion, status]
+      properties:
+        requestId:
+          type: string
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        runId:
+          type: string
+        status:
+          type: string
+          enum: [ok, failed, unknown, cancelled, busy, timeout, denied, unsupported]
+        errorCode:
+          type: string
+        result:
+          $ref: "#/components/schemas/MediaRef"
+    MediaRef:
+      type: object
+      properties:
+        mediaId:
+          type: string
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png]
+        width:
+          type: integer
+        height:
+          type: integer
+        byteLength:
+          type: integer
+        checksum:
+          type: string
+          description: sha256 hex, optional sha256: prefix
+        readUrl:
+          type: string
+          description: Loopback or allowlisted HTTPS. OpenBot pulls. Not written to the audit log.
+        expiresAt:
+          type: string
+          format: date-time
+    EventEnvelope:
+      type: object
+      required: [schemaVersion, eventId, sequence, bindingVersion, type, payload, data, createdAt]
+      properties:
+        schemaVersion:
+          type: integer
+        apiVersion:
+          type: string
+        protocolVersion:
+          type: string
+        eventId:
+          type: string
+        sequence:
+          type: integer
+        seq:
+          type: integer
+        cursor:
+          type: string
+        runId:
+          type: string
+        turnId:
+          type: string
+        conversationId:
+          type: string
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        type:
+          type: string
+          enum:
+            - run.accepted
+            - run.started
+            - assistant.delta
+            - assistant.visible
+            - assistant.final
+            - approval.required
+            - tool.request
+            - run.completed
+            - run.failed
+            - run.cancelled
+            - authorization.revoked
+            - binding.updated
+        payload:
+          type: object
+        data:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        traceId:
+          type: string
+        messageId:
+          type: string
+    ErrorEnvelope:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+        protocolVersion:
+          type: string
+        traceId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        error:
+          type: object
+          required: [code, message, retryable]
+          properties:
+            code:
+              type: string
+              enum:
+                - AUTH_INVALID
+                - AUTH_REVOKED
+                - OBJECT_NOT_FOUND
+                - SCOPE_DENIED
+                - BINDING_MISMATCH
+                - IDEMPOTENCY_CONFLICT
+                - SESSION_BUSY
+                - CURSOR_EXPIRED
+                - TOOL_TIMEOUT
+                - MEDIA_INVALID
+                - RUN_FAILED
+                - PARAM_UNSUPPORTED
+                - DEVICE_OFFLINE
+                - CAMERA_BUSY
+                - USER_DENIED
+                - TIMEOUT
+                - CANCELLED
+                - UPLOAD_FAILED
+                - RATE_LIMITED
+                - INTERNAL
+                - UNKNOWN_AFTER_RESTART
+                - LATE_RESULT
+            message:
+              type: string
+            retryable:
+              type: boolean

@@ -4,13 +4,13 @@
 
 ## 合约
 
-- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `536a963b119f0a00675516401c52dd0f6187b196`
-- [ ] 文档写明这是 openbot-vp `main` 上 PR #8 的 squash merge（真实 Agent/vision）
-- [ ] `previousSha` 为已作废的 PR #7 squash `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`，它不是 `officialMergeSha`
-- [ ] `554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
+- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `41b7561222775e4ad00b056e2a535c7f950bcbe9`
+- [ ] 文档写明这是 openbot-vp `main` 上 PR #9 的 squash merge
+- [ ] `previousSha` 为已作废的 PR #8 squash `536a963b119f0a00675516401c52dd0f6187b196`，它不是 `officialMergeSha`
+- [ ] `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] 文档写明本环境读取该仓库 OpenAPI 得到 404，槽文件不是合成契约，`routesAligned` 仍是 false
+- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 是 `41b75612…` 的文件；路径和 SSE 事件名一致时 `routesAligned` 为 true
 - [ ] B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`；B0 与 B2–B5 仍是本地 stand-in
 - [ ] 冻结字段仍是 `authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`、`assistant.*`
 - [ ] 未设置 `OPENBOT_DEVICE_DH_STUB_URL` 时不访问 live stub
@@ -24,7 +24,8 @@
 - [ ] 打断路径不调用 ResetDecoder
 - [ ] 满队列残留仍是 40 × 60 ms = 2400 ms
 - [ ] 没有把 `api.tenclass.net` 配成语音或 OTA 生产入口
-- [ ] 真实 ASR / TTS WebSocket 仍未接入；实验配置里的 voice WSS 只是 `wss://lab.invalid/voice`
+- [ ] 真实 ASR / TTS 仍未接入；`npm run voice` 只是本机模拟，TTS 仍是 `OB-OPUS-PLACEHOLDER`
+- [ ] 未设置 `OPENBOT_LAB_VOICE_WSS_URL` 时，实验配置里的 voice WSS 仍是 `wss://lab.invalid/voice`
 
 ## A3 媒体与工具
 
