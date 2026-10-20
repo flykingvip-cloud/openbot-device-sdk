@@ -18,7 +18,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 
 ## 样例客户端
 
-口令写在 openbot-vp 合约针 `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` 的 `docs/integrations/device-digital-human/staging.md`。本环境访问该仓库得到 404，所以这里不复制、也不编造用户名和口令。OpenAPI 只声明了角色：
+口令写在 openbot-vp 合约针 `92826116a9b00a596ae2360d8a643d6148050e3c` 的 `docs/integrations/device-digital-human/staging.md`。本环境访问该仓库得到 404，所以这里不复制、也不编造用户名和口令。OpenAPI 只声明了角色：
 
 | 角色 | 方案 | 环境变量 |
 |---|---|---|
@@ -72,7 +72,7 @@ npm run live-stub -- --camera
 
 ## 数字人会话
 
-当前针是 PR #11 的 `d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`。`bc3d9fda…` 已作废。路径和 SSE 事件名仍与入库 OpenAPI 一致，`routesAligned` 保持 true。这只是静态对齐，不是端到端联调通过。B2–B5 在没有 stub URL 时仍是本地 stand-in。
+当前针是 PR #12 的 `92826116a9b00a596ae2360d8a643d6148050e3c`。`d22db475…` 已作废。冻结字段名和前缀没改，路径和 SSE 事件名仍与入库 OpenAPI 一致，`routesAligned` 保持 true。这只是静态对齐，不是端到端联调通过。B2–B5 在没有 stub URL 时仍是本地 stand-in。
 
 ## 纵向消费
 

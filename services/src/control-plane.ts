@@ -5,6 +5,7 @@ import {
   assertFrozenBinding,
   assertJsonValue,
   assertNoFrozenAliases,
+  assistantEqual,
   cloneAssistant,
   isPlainObject,
   type AssistantFields,
@@ -16,6 +17,11 @@ import { ControlPlaneError, OtaDisabledError } from "./errors.ts";
 import { STAGING_CONTROL_SECTION, type StagingDb } from "./staging-db.ts";
 
 const CLAIM_TTL_MS = 10 * 60 * 1000;
+
+const DEVICE_ID_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/;
+const SERVICE_PRINCIPAL_PATTERN = /^[A-Za-z0-9_.:@-]{1,128}$/;
+const PAIR_CHALLENGE_PATTERN = /^pch_[A-Za-z0-9_-]{8,80}$/;
+const PAIRING_FIELD_NAMES = new Set(["pairChallenge", "pairingChallenge", "pairingCode", "ownershipProof", "pairNonce"]);
 
 /** Short-lived connection credential. Refresh is a local stub, not a network call. */
 export const CONNECTION_CREDENTIAL_TTL_MS = 15 * 60 * 1000;
@@ -104,6 +110,56 @@ export interface ControlPlaneOptions {
   credentialTtlMs?: number;
   /** When set, claim/bind/OTA/credential/revoke state survives a new `ControlPlane` on the same db. */
   store?: StagingDb;
+  /** Opaque pair-challenge id. The default is `pch_` plus a UUID. */
+  pairChallengeId?: () => string;
+}
+
+/** One-time device-platform challenge. `pairingCode` is shown once, at creation. */
+export interface PairChallengeTicket {
+  pairChallenge: string;
+  deviceId: string;
+  pairingCode: string;
+  expiresAtMs: number;
+  status: "pending";
+}
+
+export interface PairOwnership {
+  pairChallenge: string;
+  deviceId: string;
+  servicePrincipal: string;
+  status: "redeemed";
+  ownership: "verified";
+}
+
+export type DeviceBindStatusName = "unbound" | "bound" | "revoked";
+
+/**
+ * Device visible to one service principal.
+ * `authorizationRef` is copied from a verified OpenBot grant when `source` is `openbot-grant`.
+ * `pairingCode` is never included.
+ */
+export interface DeviceControlRecord {
+  deviceId: string;
+  servicePrincipal: string;
+  ownership: "pending" | "verified";
+  bindStatus: DeviceBindStatusName;
+  revoked: boolean;
+  pairChallenge?: string;
+  authorizationRef?: string;
+  bindingVersion?: number;
+  digitalHumanId?: string;
+  assistant?: AssistantFields;
+  source?: "openbot-grant";
+}
+
+/** Grant fields already checked against OpenBot. This object is not a client body. */
+export interface VerifiedGrantBinding {
+  authorizationRef: string;
+  bindingVersion: number;
+  digitalHumanId: string;
+  deviceId: string;
+  assistant: AssistantFields;
+  status?: string;
 }
 
 export interface BindInput {
@@ -134,6 +190,21 @@ export interface LabOtaInput {
   rollout?: string;
 }
 
+interface PairChallengeRecord {
+  pairChallenge: string;
+  deviceId: string;
+  pairingCode: string;
+  expiresAtMs: number;
+  status: "pending" | "redeemed";
+  servicePrincipal: string;
+  redeemedAtMs?: number;
+}
+
+interface DevicePrincipalRecord {
+  deviceId: string;
+  servicePrincipal: string;
+}
+
 interface ControlSection {
   version: typeof STATE_VERSION;
   claims: ClaimRecord[];
@@ -141,6 +212,9 @@ interface ControlSection {
   ota: LabOtaIntent[];
   credentials: ConnectionCredential[];
   revoked: Revocation[];
+  pairChallenges: PairChallengeRecord[];
+  devicePrincipals: DevicePrincipalRecord[];
+  grantBound: string[];
 }
 
 const PRODUCTION_HOSTS = [XIAOZHI_OTA_HOST, C5_HOSTED_BIN_HOST];
@@ -155,6 +229,7 @@ function defaultCode(): string {
  * With a file or sqlite `StagingDb`, the next process reloads it.
  * `flash` and `massFlash` always throw. No firmware URL is stored.
  * `refreshConnectionCredential` is a local stub and does not call a network.
+ * `applyVerifiedGrant` stores an OpenBot grant as-is and does not mint `authorizationRef`.
  */
 export class ControlPlane {
   private readonly claims = new Map<string, ClaimRecord>();
@@ -162,10 +237,14 @@ export class ControlPlane {
   private readonly ota = new Map<string, LabOtaIntent>();
   private readonly credentials = new Map<string, ConnectionCredential>();
   private readonly revoked = new Map<string, Revocation>();
+  private readonly pairChallenges = new Map<string, PairChallengeRecord>();
+  private readonly principals = new Map<string, string>();
+  private readonly grantBound = new Set<string>();
   private readonly now: () => number;
   private readonly code: () => string;
   private readonly authorizationRef: () => string;
   private readonly token: () => string;
+  private readonly pairChallengeId: () => string;
   private readonly credentialTtlMs: number;
   private readonly store: StagingDb | undefined;
   private readonly sessionLifecycles: Array<WeakRef<SessionLifecycleListener>> = [];
@@ -175,6 +254,7 @@ export class ControlPlane {
     this.code = options.code ?? defaultCode;
     this.authorizationRef = options.authorizationRef ?? (() => `aref_${randomUUID()}`);
     this.token = options.token ?? (() => `ctok_${randomUUID()}`);
+    this.pairChallengeId = options.pairChallengeId ?? (() => `pch_${randomUUID()}`);
     if (
       options.credentialTtlMs !== undefined &&
       (!Number.isFinite(options.credentialTtlMs) || options.credentialTtlMs <= 0)
@@ -499,6 +579,161 @@ export class ControlPlane {
     };
   }
 
+  /**
+   * Starts a one-time pairing challenge for a service principal.
+   * The 6-digit `pairingCode` is the claim code. It is not an OpenBot field.
+   */
+  createPairChallenge(deviceId: string, servicePrincipal: string): PairChallengeTicket {
+    assertDeviceId(deviceId);
+    assertServicePrincipal(servicePrincipal);
+    const owner = this.principals.get(deviceId);
+    if (owner !== undefined && owner !== servicePrincipal) {
+      throw new ControlPlaneError("pair_owned", "device is owned by another service principal");
+    }
+    const pairChallenge = this.pairChallengeId();
+    if (!PAIR_CHALLENGE_PATTERN.test(pairChallenge) || this.pairChallenges.has(pairChallenge)) {
+      throw new ControlPlaneError("pair_challenge", "pair challenge id is invalid");
+    }
+    const ticket = this.issueClaim(deviceId);
+    for (const [id, challenge] of this.pairChallenges) {
+      if (challenge.deviceId === deviceId && challenge.status === "pending") {
+        this.pairChallenges.delete(id);
+      }
+    }
+    const record: PairChallengeRecord = {
+      pairChallenge,
+      deviceId,
+      pairingCode: ticket.code,
+      expiresAtMs: ticket.expiresAtMs,
+      status: "pending",
+      servicePrincipal,
+    };
+    this.pairChallenges.set(pairChallenge, record);
+    this.persist();
+    return {
+      pairChallenge,
+      deviceId,
+      pairingCode: ticket.code,
+      expiresAtMs: ticket.expiresAtMs,
+      status: "pending",
+    };
+  }
+
+  /** Verifies ownership. A repeat by the same principal with the same code stays redeemed. */
+  redeemPairChallenge(input: {
+    pairChallenge: string;
+    deviceId: string;
+    pairingCode: string;
+    servicePrincipal: string;
+  }): PairOwnership {
+    assertDeviceId(input.deviceId);
+    assertServicePrincipal(input.servicePrincipal);
+    const challenge = this.pairChallenges.get(input.pairChallenge);
+    if (!challenge) {
+      throw new ControlPlaneError("pair_missing", "pair challenge was not found");
+    }
+    if (challenge.servicePrincipal !== input.servicePrincipal) {
+      throw new ControlPlaneError("pair_owned", "pair challenge belongs to another service principal");
+    }
+    if (challenge.deviceId !== input.deviceId) {
+      throw new ControlPlaneError("pair_device", "pair challenge does not match deviceId");
+    }
+    if (challenge.pairingCode !== input.pairingCode) {
+      throw new ControlPlaneError("pair_code", "pairing code does not match");
+    }
+    if (challenge.status === "redeemed") {
+      return ownershipOf(challenge);
+    }
+    if (this.now() >= challenge.expiresAtMs) {
+      throw new ControlPlaneError("pair_expired", "pair challenge expired");
+    }
+    this.redeemClaim(input.deviceId, input.pairingCode);
+    challenge.status = "redeemed";
+    challenge.redeemedAtMs = this.now();
+    this.principals.set(input.deviceId, input.servicePrincipal);
+    this.persist();
+    return ownershipOf(challenge);
+  }
+
+  listDevicesForPrincipal(servicePrincipal: string): DeviceControlRecord[] {
+    assertServicePrincipal(servicePrincipal);
+    const seen = new Set<string>();
+    const devices: DeviceControlRecord[] = [];
+    for (const [deviceId, owner] of this.principals) {
+      if (owner === servicePrincipal) {
+        seen.add(deviceId);
+        devices.push(this.deviceRecord(deviceId));
+      }
+    }
+    for (const challenge of this.pairChallenges.values()) {
+      if (
+        challenge.servicePrincipal !== servicePrincipal ||
+        challenge.status !== "pending" ||
+        seen.has(challenge.deviceId)
+      ) {
+        continue;
+      }
+      seen.add(challenge.deviceId);
+      devices.push(pendingRecord(challenge));
+    }
+    devices.sort((left, right) => (left.deviceId < right.deviceId ? -1 : left.deviceId > right.deviceId ? 1 : 0));
+    return devices;
+  }
+
+  deviceForPrincipal(servicePrincipal: string, deviceId: string): DeviceControlRecord {
+    assertDeviceId(deviceId);
+    assertServicePrincipal(servicePrincipal);
+    const owner = this.principals.get(deviceId);
+    if (owner === servicePrincipal) {
+      return this.deviceRecord(deviceId);
+    }
+    if (owner !== undefined) {
+      throw new ControlPlaneError("pair_owned", "device is owned by another service principal");
+    }
+    const pending = latestPending(this.pairChallenges, deviceId, servicePrincipal);
+    if (pending) {
+      return pendingRecord(pending);
+    }
+    throw new ControlPlaneError("pair_unowned", "device ownership has not been verified");
+  }
+
+  /**
+   * Stores a grant that OpenBot already issued.
+   * Does not call the local `authorizationRef` generator.
+   */
+  applyVerifiedGrant(servicePrincipal: string, grant: VerifiedGrantBinding): DeviceControlRecord {
+    this.assertOwned(servicePrincipal, grant.deviceId);
+    if (this.claimStatus(grant.deviceId) !== "claimed") {
+      throw new ControlPlaneError("pair_unredeemed", "device ownership has not been verified");
+    }
+    return this.writeVerifiedGrant(grant);
+  }
+
+  /**
+   * Updates a binding from a freshly read OpenBot grant.
+   * A higher `bindingVersion` is a rebind. The `authorizationRef` stays the grant's value.
+   */
+  syncVerifiedGrant(servicePrincipal: string, grant: VerifiedGrantBinding): DeviceControlRecord {
+    this.assertOwned(servicePrincipal, grant.deviceId);
+    if (!this.bindings.has(grant.deviceId)) {
+      throw new ControlPlaneError("bind_missing", "device is not bound");
+    }
+    return this.writeVerifiedGrant(grant);
+  }
+
+  /** Local stop. Does not call OpenBot revoke. Repeat calls stay revoked. */
+  revokeForPrincipal(servicePrincipal: string, deviceId: string): DeviceControlRecord & { clearedTokens: number } {
+    this.assertOwned(servicePrincipal, deviceId);
+    if (!this.bindings.has(deviceId)) {
+      throw new ControlPlaneError("bind_missing", "device is not bound");
+    }
+    if (this.revoked.has(deviceId)) {
+      return { ...this.deviceRecord(deviceId), clearedTokens: 0 };
+    }
+    const clearedTokens = this.revoke(deviceId).clearedTokens;
+    return { ...this.deviceRecord(deviceId), clearedTokens };
+  }
+
   flash(): never {
     throw new OtaDisabledError("ota_disabled", "flash is disabled; this control plane does not write a firmware image");
   }
@@ -574,6 +809,103 @@ export class ControlPlane {
     return cleared;
   }
 
+  private assertOwned(servicePrincipal: string, deviceId: string): void {
+    assertDeviceId(deviceId);
+    assertServicePrincipal(servicePrincipal);
+    const owner = this.principals.get(deviceId);
+    if (owner === undefined) {
+      throw new ControlPlaneError("pair_unowned", "device ownership has not been verified");
+    }
+    if (owner !== servicePrincipal) {
+      throw new ControlPlaneError("pair_owned", "device is owned by another service principal");
+    }
+  }
+
+  private writeVerifiedGrant(grant: VerifiedGrantBinding): DeviceControlRecord {
+    const binding = bindingFromVerifiedGrant(grant);
+    const current = this.bindings.get(binding.deviceId);
+    if (grant.status === "revoked") {
+      if (!current) {
+        throw new ControlPlaneError("grant_revoked", "OpenBot grant is revoked");
+      }
+      if (current.authorizationRef !== binding.authorizationRef) {
+        throw new ControlPlaneError("grant_ref", "grant authorizationRef does not match the stored binding");
+      }
+      if (!this.revoked.has(binding.deviceId)) {
+        this.revoke(binding.deviceId);
+      }
+      return this.deviceRecord(binding.deviceId);
+    }
+    if (grant.status !== undefined && grant.status !== "active") {
+      throw new ControlPlaneError("grant_status", "grant status is not active or revoked");
+    }
+    if (current && current.authorizationRef !== binding.authorizationRef) {
+      throw new ControlPlaneError("grant_ref", "grant authorizationRef does not match the stored binding");
+    }
+    if (current && binding.bindingVersion < current.bindingVersion) {
+      throw new ControlPlaneError("grant_stale", "grant bindingVersion is older than the stored binding");
+    }
+    if (current && this.revoked.has(binding.deviceId) && binding.bindingVersion <= current.bindingVersion) {
+      throw new ControlPlaneError("bind_revoked", "device stays stopped until OpenBot increases bindingVersion");
+    }
+    const versionChanged = current !== undefined && current.bindingVersion !== binding.bindingVersion;
+    const profileChanged =
+      current === undefined ||
+      versionChanged ||
+      current.digitalHumanId !== binding.digitalHumanId ||
+      !assistantEqual(current.assistant, binding.assistant);
+    if (profileChanged) {
+      if (versionChanged) {
+        this.dropCredentials(binding.deviceId);
+        this.notifySessions(binding.deviceId, "rebound");
+      }
+      this.revoked.delete(binding.deviceId);
+      this.bindings.set(binding.deviceId, binding);
+      this.grantBound.add(binding.deviceId);
+      if (current) {
+        invalidateDigitalHumanCache(this);
+      }
+      this.persist();
+    } else if (!this.grantBound.has(binding.deviceId)) {
+      this.grantBound.add(binding.deviceId);
+      this.persist();
+    }
+    return this.deviceRecord(binding.deviceId);
+  }
+
+  private deviceRecord(deviceId: string): DeviceControlRecord {
+    const servicePrincipal = this.principals.get(deviceId);
+    if (servicePrincipal === undefined) {
+      throw new ControlPlaneError("pair_unowned", "device ownership has not been verified");
+    }
+    const pending = latestPending(this.pairChallenges, deviceId, servicePrincipal);
+    const binding = this.bindings.get(deviceId);
+    const revoked = this.revoked.has(deviceId);
+    const bindStatus: DeviceBindStatusName = revoked ? "revoked" : binding ? "bound" : "unbound";
+    const base: DeviceControlRecord = {
+      deviceId,
+      servicePrincipal,
+      ownership: pending ? "pending" : "verified",
+      bindStatus,
+      revoked,
+      ...(pending ? { pairChallenge: pending.pairChallenge } : {}),
+    };
+    if (!binding) {
+      return base;
+    }
+    const withBinding: DeviceControlRecord = {
+      ...base,
+      authorizationRef: binding.authorizationRef,
+      bindingVersion: binding.bindingVersion,
+      digitalHumanId: binding.digitalHumanId,
+      assistant: cloneAssistant(binding.assistant),
+    };
+    if (!this.grantBound.has(deviceId)) {
+      return withBinding;
+    }
+    return { ...withBinding, source: "openbot-grant" };
+  }
+
   private hydrate(): void {
     const raw = this.store?.get(STAGING_CONTROL_SECTION);
     if (raw === undefined) {
@@ -585,6 +917,9 @@ export class ControlPlane {
     this.ota.clear();
     this.credentials.clear();
     this.revoked.clear();
+    this.pairChallenges.clear();
+    this.principals.clear();
+    this.grantBound.clear();
     for (const claim of section.claims) {
       this.claims.set(claim.deviceId, claim);
     }
@@ -600,6 +935,15 @@ export class ControlPlane {
     for (const revocation of section.revoked) {
       this.revoked.set(revocation.deviceId, revocation);
     }
+    for (const challenge of section.pairChallenges) {
+      this.pairChallenges.set(challenge.pairChallenge, challenge);
+    }
+    for (const principal of section.devicePrincipals) {
+      this.principals.set(principal.deviceId, principal.servicePrincipal);
+    }
+    for (const deviceId of section.grantBound) {
+      this.grantBound.add(deviceId);
+    }
   }
 
   private persist(): void {
@@ -613,6 +957,12 @@ export class ControlPlane {
       ota: [...this.ota.values()].map((intent) => ({ ...intent })),
       credentials: [...this.credentials.values()].map((credential) => ({ ...credential })),
       revoked: [...this.revoked.values()].map((revocation) => ({ ...revocation })),
+      pairChallenges: [...this.pairChallenges.values()].map((challenge) => ({ ...challenge })),
+      devicePrincipals: [...this.principals.entries()].map(([deviceId, servicePrincipal]) => ({
+        deviceId,
+        servicePrincipal,
+      })),
+      grantBound: [...this.grantBound],
     };
     this.store.set(STAGING_CONTROL_SECTION, section);
   }
@@ -667,7 +1017,10 @@ function parseControlSection(raw: unknown): ControlSection {
   const ota = parseOta(raw.ota);
   const credentials = parseCredentials(raw.credentials);
   const revoked = parseRevocations(raw.revoked);
-  return { version: STATE_VERSION, claims, bindings, ota, credentials, revoked };
+  const pairChallenges = raw.pairChallenges === undefined ? [] : parsePairChallenges(raw.pairChallenges);
+  const devicePrincipals = raw.devicePrincipals === undefined ? [] : parseDevicePrincipals(raw.devicePrincipals);
+  const grantBound = raw.grantBound === undefined ? [] : parseGrantBound(raw.grantBound);
+  return { version: STATE_VERSION, claims, bindings, ota, credentials, revoked, pairChallenges, devicePrincipals, grantBound };
 }
 
 function parseClaims(value: unknown): ClaimRecord[] {
@@ -777,6 +1130,154 @@ function parseCredentials(value: unknown): ConnectionCredential[] {
     }
     seen.add(token);
     return { deviceId, token, expiresAtMs, authorizationRef, bindingVersion };
+  });
+}
+
+function ownershipOf(challenge: PairChallengeRecord): PairOwnership {
+  return {
+    pairChallenge: challenge.pairChallenge,
+    deviceId: challenge.deviceId,
+    servicePrincipal: challenge.servicePrincipal,
+    status: "redeemed",
+    ownership: "verified",
+  };
+}
+
+function pendingRecord(challenge: PairChallengeRecord): DeviceControlRecord {
+  return {
+    deviceId: challenge.deviceId,
+    servicePrincipal: challenge.servicePrincipal,
+    ownership: "pending",
+    bindStatus: "unbound",
+    revoked: false,
+    pairChallenge: challenge.pairChallenge,
+  };
+}
+
+function latestPending(
+  challenges: ReadonlyMap<string, PairChallengeRecord>,
+  deviceId: string,
+  servicePrincipal: string,
+): PairChallengeRecord | undefined {
+  let found: PairChallengeRecord | undefined;
+  for (const challenge of challenges.values()) {
+    if (challenge.deviceId === deviceId && challenge.servicePrincipal === servicePrincipal && challenge.status === "pending") {
+      found = challenge;
+    }
+  }
+  return found;
+}
+
+function bindingFromVerifiedGrant(grant: VerifiedGrantBinding): FrozenBinding {
+  assertAssistantHasNoPairFields(grant.assistant);
+  return assertFrozenBinding({
+    authorizationRef: grant.authorizationRef,
+    bindingVersion: grant.bindingVersion,
+    digitalHumanId: grant.digitalHumanId,
+    deviceId: grant.deviceId,
+    assistant: grant.assistant,
+  });
+}
+
+function assertAssistantHasNoPairFields(assistant: AssistantFields): void {
+  for (const key of Object.keys(assistant)) {
+    if (PAIRING_FIELD_NAMES.has(key)) {
+      throw new ControlPlaneError("pair_field", "pair fields are not part of an OpenBot grant");
+    }
+  }
+}
+
+function assertDeviceId(deviceId: string): void {
+  if (!DEVICE_ID_PATTERN.test(deviceId)) {
+    throw new ControlPlaneError("pair_device", "deviceId is invalid");
+  }
+}
+
+function assertServicePrincipal(servicePrincipal: string): void {
+  if (!SERVICE_PRINCIPAL_PATTERN.test(servicePrincipal)) {
+    throw new ControlPlaneError("pair_principal", "service principal is invalid");
+  }
+}
+
+function parsePairChallenges(value: unknown): PairChallengeRecord[] {
+  if (!Array.isArray(value)) {
+    throw new ControlPlaneError("state_corrupt", "pair challenges must be an array");
+  }
+  const seen = new Set<string>();
+  return value.map((item) => {
+    if (!isPlainObject(item)) {
+      throw new ControlPlaneError("state_corrupt", "pair challenge must be an object");
+    }
+    const { pairChallenge, deviceId, pairingCode, expiresAtMs, status, servicePrincipal, redeemedAtMs } = item;
+    if (typeof pairChallenge !== "string" || !PAIR_CHALLENGE_PATTERN.test(pairChallenge) || seen.has(pairChallenge)) {
+      throw new ControlPlaneError("state_corrupt", "pair challenge id is invalid");
+    }
+    if (typeof deviceId !== "string" || !DEVICE_ID_PATTERN.test(deviceId)) {
+      throw new ControlPlaneError("state_corrupt", "pair challenge deviceId is invalid");
+    }
+    if (typeof pairingCode !== "string" || !/^\d{6}$/.test(pairingCode)) {
+      throw new ControlPlaneError("state_corrupt", "pairing code must be 6 digits");
+    }
+    if (typeof expiresAtMs !== "number" || !Number.isFinite(expiresAtMs)) {
+      throw new ControlPlaneError("state_corrupt", "pair challenge expiry is invalid");
+    }
+    if (status !== "pending" && status !== "redeemed") {
+      throw new ControlPlaneError("state_corrupt", "pair challenge status is invalid");
+    }
+    if (typeof servicePrincipal !== "string" || !SERVICE_PRINCIPAL_PATTERN.test(servicePrincipal)) {
+      throw new ControlPlaneError("state_corrupt", "pair challenge principal is invalid");
+    }
+    if (redeemedAtMs !== undefined && (typeof redeemedAtMs !== "number" || !Number.isFinite(redeemedAtMs))) {
+      throw new ControlPlaneError("state_corrupt", "pair challenge redeem time is invalid");
+    }
+    seen.add(pairChallenge);
+    const record: PairChallengeRecord = {
+      pairChallenge,
+      deviceId,
+      pairingCode,
+      expiresAtMs,
+      status,
+      servicePrincipal,
+    };
+    if (typeof redeemedAtMs === "number") {
+      record.redeemedAtMs = redeemedAtMs;
+    }
+    return record;
+  });
+}
+
+function parseDevicePrincipals(value: unknown): DevicePrincipalRecord[] {
+  if (!Array.isArray(value)) {
+    throw new ControlPlaneError("state_corrupt", "device principals must be an array");
+  }
+  const seen = new Set<string>();
+  return value.map((item) => {
+    if (!isPlainObject(item)) {
+      throw new ControlPlaneError("state_corrupt", "device principal must be an object");
+    }
+    const { deviceId, servicePrincipal } = item;
+    if (typeof deviceId !== "string" || !DEVICE_ID_PATTERN.test(deviceId) || seen.has(deviceId)) {
+      throw new ControlPlaneError("state_corrupt", "device principal deviceId is invalid");
+    }
+    if (typeof servicePrincipal !== "string" || !SERVICE_PRINCIPAL_PATTERN.test(servicePrincipal)) {
+      throw new ControlPlaneError("state_corrupt", "device principal is invalid");
+    }
+    seen.add(deviceId);
+    return { deviceId, servicePrincipal };
+  });
+}
+
+function parseGrantBound(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    throw new ControlPlaneError("state_corrupt", "grant bindings must be an array");
+  }
+  const seen = new Set<string>();
+  return value.map((item) => {
+    if (typeof item !== "string" || !DEVICE_ID_PATTERN.test(item) || seen.has(item)) {
+      throw new ControlPlaneError("state_corrupt", "grant-bound deviceId is invalid");
+    }
+    seen.add(item);
+    return item;
   });
 }
 

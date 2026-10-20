@@ -1,0 +1,521 @@
+openapi: 3.0.3
+info:
+  title: OpenBot device-platform device control
+  version: v1-draft
+  description: >
+    Draft for Agent B to freeze. This is not a gray release and not real-device delivery.
+    The path prefix is /api/device-platform/v1. It is not /api/integrations/v1.
+    pairChallenge and pairingCode exist only on this API. They must never be sent to OpenBot.
+    authorizationRef is copied from an OpenBot grant after exchange. This API does not mint one.
+    flash and massFlash are not operations. firmwareUrl stays null.
+servers:
+  - url: http://127.0.0.1:8791
+    description: Loopback device-control draft. Not a production host.
+tags:
+  - name: discovery
+  - name: pairing
+  - name: binding
+paths:
+  /api/device-platform/v1/health:
+    get:
+      tags: [discovery]
+      summary: Health of this device-control process
+      security: [{ serviceBasic: [] }]
+      responses:
+        "200":
+          description: Process is up. OTA remains disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "401":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/capabilities:
+    get:
+      tags: [discovery]
+      summary: Routes and the OpenBot boundary
+      security: [{ serviceBasic: [] }]
+      responses:
+        "200":
+          description: Capability snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Capabilities"
+        "401":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/pair-challenges:
+    post:
+      tags: [pairing]
+      summary: Create a one-time pairing challenge
+      description: >
+        Returns pairingCode once. The caller must not copy pairChallenge or pairingCode
+        into any /api/integrations/v1 request. userId, tenantId, and digitalHumanId are rejected.
+      security: [{ serviceBasic: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePairChallenge"
+      responses:
+        "201":
+          description: Challenge created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairChallenge"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/pair-challenges/{pairChallenge}/redeem:
+    post:
+      tags: [pairing]
+      summary: Redeem a challenge and verify ownership
+      security: [{ serviceBasic: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PairChallenge"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemPairChallenge"
+      responses:
+        "200":
+          description: Ownership verified. pairingCode is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairOwnership"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/devices:
+    get:
+      tags: [binding]
+      summary: List devices for the authenticated service principal
+      security: [{ serviceBasic: [] }]
+      responses:
+        "200":
+          description: Devices this principal paired. No pairingCode.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceList"
+        "401":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/devices/{deviceId}/bind:
+    get:
+      tags: [binding]
+      summary: Bind status for one owned device
+      security: [{ serviceBasic: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      responses:
+        "200":
+          description: Current device-platform view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [binding]
+      summary: Apply a bind from an existing OpenBot grant
+      description: >
+        Call this only after OpenBot consent (PKCE S256) and POST /grants/exchange.
+        The body authorizationRef must be the value OpenBot returned.
+        X-OpenBot-Grant-Credential is the exchange credential, sent as a header.
+        This route reads the grant and stores those fields. It does not mint authorizationRef.
+        A client-supplied digitalHumanId is only an echo and must match the grant.
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyBind"
+      responses:
+        "200":
+          description: Binding stored from the verified grant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "502":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/devices/{deviceId}/bind/sync:
+    post:
+      tags: [binding]
+      summary: Sync bind status from the current OpenBot grant
+      description: >
+        Re-reads the grant. status revoked stops the device locally.
+        A higher bindingVersion is an OpenBot rebind and keeps the same authorizationRef.
+        A local stop stays in place until that version increases or the grant is revoked.
+      security: [{ serviceBasic: [], grantCredential: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyBind"
+      responses:
+        "200":
+          description: Status after sync
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+        "502":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/devices/{deviceId}/revoke:
+    post:
+      tags: [binding]
+      summary: Local stop
+      description: Same operation as /stop. Does not call OpenBot revoke.
+      security: [{ serviceBasic: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Empty"
+      responses:
+        "200":
+          description: Device stopped locally
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StopResult"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+  /api/device-platform/v1/devices/{deviceId}/stop:
+    post:
+      tags: [binding]
+      summary: Local stop
+      description: Alias of /revoke. Does not call OpenBot revoke.
+      security: [{ serviceBasic: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DeviceId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Empty"
+      responses:
+        "200":
+          description: Device stopped locally
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StopResult"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    serviceBasic:
+      type: http
+      scheme: basic
+      description: >
+        OpenBot service client (OPENBOT_STUB_SERVICE_USER / OPENBOT_STUB_SERVICE_PASSWORD).
+        The username is the service principal. Browser-declared user, tenant, or digital human ids are ignored.
+    grantCredential:
+      type: apiKey
+      in: header
+      name: X-OpenBot-Grant-Credential
+      description: Credential returned once by OpenBot POST /grants/exchange. Not a pair challenge.
+  parameters:
+    PairChallenge:
+      name: pairChallenge
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^pch_[A-Za-z0-9_-]{8,80}$"
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_.:-]{1,128}$"
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: >
+            Stable code. Includes unauthorized, untrusted_identity, pair_field, pair_code,
+            pair_expired, pair_owned, pair_missing, grant_credential, grant_ref, grant_mismatch,
+            grant_device, grant_unverified, grant_unreachable, bind_revoked, not_device_platform.
+        message:
+          type: string
+    Health:
+      type: object
+      required:
+        - ok
+        - service
+        - apiPrefix
+        - maturity
+        - grayRelease
+        - realDeviceDelivery
+        - firmwareUrl
+        - executable
+        - flash
+        - massFlash
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        service:
+          type: string
+          enum: [device-control]
+        apiPrefix:
+          type: string
+          enum: [/api/device-platform/v1]
+        maturity:
+          type: string
+          enum: [agent-b-freeze-draft]
+          description: Freeze candidate for Agent B. Not gray release and not real-device delivery.
+        grayRelease:
+          type: boolean
+          enum: [false]
+        realDeviceDelivery:
+          type: boolean
+          enum: [false]
+        firmwareUrl:
+          type: "null"
+        executable:
+          type: boolean
+          enum: [false]
+        flash:
+          type: boolean
+          enum: [false]
+        massFlash:
+          type: boolean
+          enum: [false]
+    Capabilities:
+      type: object
+      required: [apiPrefix, audience, auth, browserIdentity, routes, openBot, ota]
+      properties:
+        apiPrefix:
+          type: string
+          enum: [/api/device-platform/v1]
+        audience:
+          type: string
+          enum: [openbot-service-client]
+        auth:
+          type: string
+          enum: [serviceBasic]
+        browserIdentity:
+          type: boolean
+          enum: [false]
+        routes:
+          type: array
+          items:
+            type: string
+        openBot:
+          type: object
+          required: [prefix, consent, grantExchange, pairFieldsAccepted]
+          properties:
+            prefix:
+              type: string
+              enum: [/api/integrations/v1]
+            consent:
+              type: string
+              enum: [pkce-s256]
+            grantExchange:
+              type: string
+              enum: ["POST /grants/exchange"]
+            pairFieldsAccepted:
+              type: boolean
+              enum: [false]
+        ota:
+          type: object
+          required: [flash, massFlash, firmwareUrl]
+          properties:
+            flash:
+              type: boolean
+              enum: [false]
+            massFlash:
+              type: boolean
+              enum: [false]
+            firmwareUrl:
+              type: "null"
+    CreatePairChallenge:
+      type: object
+      additionalProperties: false
+      required: [deviceId]
+      properties:
+        deviceId:
+          type: string
+    PairChallenge:
+      type: object
+      required: [pairChallenge, deviceId, pairingCode, expiresAtMs, status]
+      properties:
+        pairChallenge:
+          type: string
+        deviceId:
+          type: string
+        pairingCode:
+          type: string
+          pattern: "^[0-9]{6}$"
+          description: Returned once at creation. Device-platform only.
+        expiresAtMs:
+          type: integer
+        status:
+          type: string
+          enum: [pending]
+    RedeemPairChallenge:
+      type: object
+      additionalProperties: false
+      required: [deviceId, pairingCode]
+      properties:
+        deviceId:
+          type: string
+        pairingCode:
+          type: string
+          pattern: "^[0-9]{6}$"
+    PairOwnership:
+      type: object
+      required: [pairChallenge, deviceId, servicePrincipal, status, ownership]
+      properties:
+        pairChallenge:
+          type: string
+        deviceId:
+          type: string
+        servicePrincipal:
+          type: string
+          description: Service Basic username. Not a client-supplied user id.
+        status:
+          type: string
+          enum: [redeemed]
+        ownership:
+          type: string
+          enum: [verified]
+    ApplyBind:
+      type: object
+      additionalProperties: false
+      required: [authorizationRef]
+      properties:
+        authorizationRef:
+          type: string
+          description: Value returned by OpenBot grant exchange. Not minted here.
+        bindingVersion:
+          type: integer
+          minimum: 1
+          description: Optional echo. Must match the grant when present.
+        digitalHumanId:
+          type: string
+          description: Optional echo. Must match the grant when present. The stored value comes from the grant.
+        deviceId:
+          type: string
+          description: Optional echo. Must match the path when present.
+    DeviceList:
+      type: object
+      required: [devices]
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+    Device:
+      type: object
+      required: [deviceId, servicePrincipal, ownership, bindStatus, revoked]
+      properties:
+        deviceId:
+          type: string
+        servicePrincipal:
+          type: string
+        ownership:
+          type: string
+          enum: [pending, verified]
+        bindStatus:
+          type: string
+          enum: [unbound, bound, revoked]
+        revoked:
+          type: boolean
+        pairChallenge:
+          type: string
+          description: Present only while a challenge is still pending. Never the pairing code.
+        authorizationRef:
+          type: string
+        bindingVersion:
+          type: integer
+        digitalHumanId:
+          type: string
+        assistant:
+          type: object
+          additionalProperties: true
+          description: Copied from the OpenBot grant. Field name stays assistant.
+        source:
+          type: string
+          enum: [openbot-grant]
+    StopResult:
+      allOf:
+        - $ref: "#/components/schemas/Device"
+        - type: object
+          required: [clearedTokens]
+          properties:
+            clearedTokens:
+              type: integer
+              minimum: 0
+    Empty:
+      type: object
+      additionalProperties: false

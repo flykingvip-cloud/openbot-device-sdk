@@ -2,13 +2,13 @@
 
 文件：`device-digital-human.openapi.yaml`
 
-来源提交：`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5`
+当前针：`92826116a9b00a596ae2360d8a643d6148050e3c`（PR #12 squash）
 
-来源 URL：
+对齐 URL：
 
-`https://raw.githubusercontent.com/flykingvip-cloud/openbot-vp/d22db4755311a1a0df9fb5e3d5da60554f8ef6a5/docs/integrations/device-digital-human/openapi.yaml`
+`https://raw.githubusercontent.com/flykingvip-cloud/openbot-vp/92826116a9b00a596ae2360d8a643d6148050e3c/docs/integrations/device-digital-human/openapi.yaml`
 
-这是 openbot-vp `main` 上 PR #11 的 squash merge。入库字节是该针附带的 OpenAPI，路径和 SSE 事件名与消费者镜像一致，`routesAligned` 为 true。`bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a` 已作废，不是当前 `officialMergeSha`。PR #11 说明了视觉进行中的工具结果幂等：同一把键和同一份 body 是重复，不同 body 是 `IDEMPOTENCY_CONFLICT`，完成后重放最终响应。
+PR #12 没有改冻结字段名，也没有改 `/api/integrations/v1`。入库字节仍是 PR #11 那份 OpenAPI，路径和 SSE 事件名与消费者镜像一致，`routesAligned` 为 true。`d22db4755311a1a0df9fb5e3d5da60554f8ef6a5` 已作废，不是当前 `officialMergeSha`。视觉进行中的工具结果幂等仍是：同一把键和同一份 body 是重复，不同 body 是 `IDEMPOTENCY_CONFLICT`，完成后重放最终响应。
 
 `contracts/src/consumer-mirror.ts` 里的能力路径和 SSE 事件名与这份文件一致，因此 `routesAligned` 为 true。这只是静态对齐，不是端到端联调通过。B2–B5 仍是本地 stand-in。`GET /healthz` 仍在 stub 根上，不在 `servers.url` 的 `/api/integrations/v1` 下面，也不在这份文件里。实验 OTA 配置进程也不提供这些能力路径。
 
