@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FrozenFieldError, assertFrozenBinding, assistantEqual } from "../contracts/src/index.ts";
-import { ControlPlane, OtaDisabledError } from "../services/src/index.ts";
+import { ControlPlane, ControlPlaneError, OtaDisabledError } from "../services/src/index.ts";
 
 function plane(): ControlPlane {
   let refs = 0;
@@ -46,7 +46,7 @@ test("claim then bind preserves assistant.* and frozen names", () => {
   ]);
 });
 
-test("aliases and assistant rewrites are rejected", () => {
+test("aliases and caller-supplied binding identity are rejected", () => {
   const control = plane();
   control.redeemClaim("dev-1", control.issueClaim("dev-1").code);
   assert.throws(
@@ -60,22 +60,34 @@ test("aliases and assistant rewrites are rejected", () => {
     FrozenFieldError,
   );
   control.bind({ deviceId: "dev-1", digitalHumanId: "dh-1", assistant });
-  assert.throws(() => control.rebind("dev-1", { assistant: { voiceId: "other" } }), FrozenFieldError);
   assert.throws(() => control.rebind("dev-1", { deviceId: "dev-2" }), FrozenFieldError);
   assert.throws(() => control.rebind("dev-1", { authorizationRef: "aref_manual" }), FrozenFieldError);
 });
 
-test("rebind rotates authorizationRef and keeps assistant bytes", () => {
+test("rebind rotates authorizationRef and stores the new assistant profile", () => {
   const control = plane();
   control.redeemClaim("dev-1", control.issueClaim("dev-1").code);
   const first = control.bind({ deviceId: "dev-1", digitalHumanId: "dh-1", assistant });
-  const second = control.rebind("dev-1", { digitalHumanId: "dh-2" });
+  const nextAssistant = { name: "B", visible: { speech: "hello-b" } };
+  assert.throws(
+    () => control.rebind("dev-1", { digitalHumanId: "dh-2" }),
+    (error: unknown) => error instanceof ControlPlaneError && error.code === "rebind_profile",
+  );
+  const second = control.rebind("dev-1", { digitalHumanId: "dh-2", assistant: nextAssistant });
   assert.equal(second.bindingVersion, 2);
   assert.equal(second.authorizationRef, "aref_2");
   assert.notEqual(second.authorizationRef, first.authorizationRef);
   assert.equal(second.deviceId, "dev-1");
   assert.equal(second.digitalHumanId, "dh-2");
-  assert.equal(assistantEqual(second.assistant, first.assistant), true);
+  assert.equal(assistantEqual(second.assistant, nextAssistant), true);
+  assert.equal(assistantEqual(second.assistant, first.assistant), false);
+  assert.deepEqual(Object.keys(second).sort(), [
+    "assistant",
+    "authorizationRef",
+    "bindingVersion",
+    "deviceId",
+    "digitalHumanId",
+  ]);
   assert.throws(
     () =>
       assertFrozenBinding({

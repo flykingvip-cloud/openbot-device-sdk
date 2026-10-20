@@ -113,6 +113,11 @@ function cacheMap(options: B1Options, writing: boolean): Map<string, DigitalHuma
   throw new Error("openbot-b1 idempotencyKey requires a plane or an idempotency cache");
 }
 
+/** Drops cached profiles for this plane. Rebind calls this so the next read loads the new grant. */
+export function invalidateDigitalHumanCache(plane: object): void {
+  cacheByPlane.delete(plane);
+}
+
 function planeCache(plane: object): Map<string, DigitalHumanProfile> {
   let cache = cacheByPlane.get(plane);
   if (!cache) {

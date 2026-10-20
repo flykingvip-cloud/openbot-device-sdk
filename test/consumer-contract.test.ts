@@ -8,7 +8,7 @@ import {
   SessionBook,
   SessionError,
 } from "../integrations/openbot-b2/src/index.ts";
-import { VisibleTtsError, invokeOpenBotTool } from "../integrations/openbot-b3/src/index.ts";
+import { IdempotencyConflictError, VisibleTtsError, invokeOpenBotTool } from "../integrations/openbot-b3/src/index.ts";
 import { ControlPlane, MemoryStagingDb } from "../services/src/index.ts";
 
 const SECRET = "do-not-speak-secret";
@@ -150,8 +150,17 @@ test("b3 speaks only assistant.visible.speech and replays the first invocation",
   );
   const second = invokeOpenBotTool(
     "assistant.tts",
-    { sessionId: "sess_lab", assistant: { visible: { speech: "other" }, systemPrompt: SECRET } },
+    { sessionId: "sess_lab", assistant },
     { idempotencyKey: "tts-1", idempotency: cache },
+  );
+  assert.throws(
+    () =>
+      invokeOpenBotTool(
+        "assistant.tts",
+        { sessionId: "sess_lab", assistant: { visible: { speech: "other" }, systemPrompt: SECRET } },
+        { idempotencyKey: "tts-1", idempotency: cache },
+      ),
+    (error: unknown) => error instanceof IdempotencyConflictError,
   );
   assert.equal(first.result.name, "assistant.tts");
   assert.equal(second.result.name, "assistant.tts");
@@ -175,8 +184,12 @@ test("b3 speaks only assistant.visible.speech and replays the first invocation",
 
   const toolCache = new Map();
   invokeOpenBotTool("media.describe", {}, { idempotencyKey: "once", idempotency: toolCache });
-  const replay = invokeOpenBotTool("ota.flash", {}, { idempotencyKey: "once", idempotency: toolCache });
+  const replay = invokeOpenBotTool("media.describe", {}, { idempotencyKey: "once", idempotency: toolCache });
   assert.equal(replay.result.name, "media.describe");
+  assert.throws(
+    () => invokeOpenBotTool("ota.flash", {}, { idempotencyKey: "once", idempotency: toolCache }),
+    (error: unknown) => error instanceof IdempotencyConflictError,
+  );
   assert.throws(() => invokeOpenBotTool("ota.massFlash"), /disabled/);
   assert.throws(() => invokeOpenBotTool("system.reboot"), /disabled/);
 });

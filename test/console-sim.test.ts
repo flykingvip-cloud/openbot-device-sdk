@@ -73,7 +73,7 @@ test("simulator covers B1-B3 stand-ins without flashing", async () => {
   assert.equal(report.reloadedRevoked, true);
   assert.equal(report.reloadedLateCameraCode, "camera_revoked");
   assert.equal(report.reloadedCursorExpired, true);
-  assert.equal(report.reloadedSessionBusy, true);
+  assert.equal(report.reloadedSessionClosed, true);
   const text = report.lines.join("\n");
   assert.match(text, /404/);
   assert.equal(text.includes("do-not-speak-secret"), false);

@@ -17,7 +17,7 @@
 - `deviceId`
 - `assistant`：JSON 对象，`assistant.*` 原样保存
 
-`rebind` 会换新的 `authorizationRef`，并把 `bindingVersion` 加 1。`deviceId` 不变。`assistant.*` 从当前绑定拷贝；请求里再带 `assistant`、`deviceId`、`authorizationRef` 或 `bindingVersion` 会直接拒绝。别名（`device_id`、`assistantProfile` 等）也会拒绝。
+`rebind` 会换新的 `authorizationRef`，并把 `bindingVersion` 加 1。`deviceId` 不变。字段名仍是 `assistant`，但新授权里的资料会替换原来的值。换成另一个 `digitalHumanId` 时必须带上新的 `assistant`。调用方不能指定 `deviceId`、`authorizationRef` 或 `bindingVersion`。别名（`device_id`、`assistantProfile` 等）也会拒绝。rebind 会清掉 B1 资料缓存，并关掉这台设备上还开着的会话。
 
 ## OTA
 
@@ -47,4 +47,4 @@ Metalio 自己的 `Ota::Upgrade` 会 GET `firmware.url` 并写入下一分区。
 
 `issueConnectionCredential` 给已绑定设备发一个短时 token。`refreshConnectionCredential` 是本地 stub：只在当前 token 仍有效且设备未吊销时轮换它，不访问网络。过期 token 可以刷新，但不能用来提交摄像头结果。
 
-`revoke` 清掉该设备的短时 token，并留下吊销标记。冻结绑定和 `assistant.*` 不动。吊销之后到达的摄像头结果一律 `camera_revoked`，不管 `capturedAtMs` 是不是更早。`rebind` 会丢掉剩余 token、清掉吊销标记，并按原规则轮换 `authorizationRef`。
+`revoke` 清掉该设备的短时 token，并留下吊销标记。冻结字段名不动。吊销之后到达的摄像头结果一律 `camera_revoked`，不管 `capturedAtMs` 是不是更早。吊销同时关掉该设备还开着的会话，旧会话上的 append / pull 不再进入原来的 run。`rebind` 会丢掉剩余 token、清掉吊销标记、轮换 `authorizationRef`，并同样关掉旧会话。

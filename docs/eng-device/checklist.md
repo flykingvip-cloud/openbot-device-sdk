@@ -35,7 +35,7 @@
 ## A4 控制面
 
 - [ ] 认领码是 6 位，绑定前必须先认领
-- [ ] rebind 更换 `authorizationRef`、递增 `bindingVersion`，不改 `assistant.*`
+- [ ] rebind 更换 `authorizationRef`、递增 `bindingVersion`；`assistant` 字段名不变，新资料替换旧值
 - [ ] `flash()` 与 `massFlash()` 仍然抛错
 - [ ] 实验 OTA 记录的 `firmwareUrl` 仍是 null，`force` 仍是 0
 - [ ] 拒绝量产、批量、fleet，以及十班和 C5 托管包主机

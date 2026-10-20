@@ -18,12 +18,55 @@ export interface B3ToolInput extends DeviceToolInput {
   assistant?: AssistantFields;
 }
 
-export type ToolIdempotencyCache = Map<string, ToolInvocation>;
+export interface IdempotencyRecord {
+  deviceId: string | null;
+  authorizationRef: string | null;
+  bindingVersion: number | null;
+  sessionId: string | null;
+  digest: string;
+  invocation: ToolInvocation;
+}
+
+export type ToolIdempotencyCache = Map<string, IdempotencyRecord>;
+
+export interface B3Scope {
+  deviceId: string;
+  authorizationRef: string;
+  bindingVersion: number;
+  sessionId?: string;
+}
+
+export interface B3Plane {
+  isRevoked(deviceId: string): boolean;
+  getBinding(deviceId: string): { authorizationRef: string; bindingVersion: number; deviceId: string } | undefined;
+}
 
 export interface B3Options {
-  /** Replays the first invocation and ignores a later payload, including a swapped assistant. */
+  /** Same key and same scoped request replays the first result. A different request conflicts. */
   idempotencyKey?: string;
   idempotency?: ToolIdempotencyCache;
+  scope?: B3Scope;
+  /** When set, revocation and the current binding are checked before a cache hit is returned. */
+  plane?: B3Plane;
+}
+
+export class IdempotencyConflictError extends Error {
+  readonly code = "idempotency_conflict";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "IdempotencyConflictError";
+  }
+}
+
+export class ToolAuthError extends Error {
+  readonly code: "tool_revoked" | "tool_binding";
+
+  constructor(code: "tool_revoked" | "tool_binding", message: string) {
+    super(message);
+    this.name = "ToolAuthError";
+    this.code = code;
+  }
 }
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_.:-]{1,128}$/;
@@ -63,12 +106,13 @@ export function invokeOpenBotTool(name: string, input: B3ToolInput = {}, options
   if (api.path !== "/v1/device/tools:invoke") {
     throw new Error("openbot-b3 stand-in path drifted");
   }
-  const cached = readIdempotent(options);
+  assertToolAuth(options);
+  const cached = readIdempotent(name, input, options);
   if (cached) {
     return cached;
   }
   const invocation = execute(name, input);
-  writeIdempotent(options, invocation);
+  writeIdempotent(name, input, options, invocation);
   return invocation;
 }
 
@@ -94,26 +138,102 @@ function visibleSpeech(assistant: AssistantFields): string {
   return speech;
 }
 
-function readIdempotent(options: B3Options): ToolInvocation | undefined {
-  if (options.idempotencyKey === undefined) {
-    return undefined;
+function assertToolAuth(options: B3Options): void {
+  if (options.plane === undefined) {
+    return;
   }
-  assertKey(options.idempotencyKey);
-  if (options.idempotency === undefined) {
-    throw new Error("openbot-b3 idempotencyKey requires an idempotency cache");
+  if (options.scope === undefined) {
+    throw new ToolAuthError("tool_binding", "tool scope is required when a control plane is attached");
   }
-  const found = options.idempotency.get(options.idempotencyKey);
-  return found === undefined ? undefined : structuredClone(found);
+  if (options.plane.isRevoked(options.scope.deviceId)) {
+    throw new ToolAuthError("tool_revoked", "device is revoked");
+  }
+  const binding = options.plane.getBinding(options.scope.deviceId);
+  if (
+    !binding ||
+    binding.deviceId !== options.scope.deviceId ||
+    binding.authorizationRef !== options.scope.authorizationRef ||
+    binding.bindingVersion !== options.scope.bindingVersion
+  ) {
+    throw new ToolAuthError("tool_binding", "tool scope does not match the current binding");
+  }
 }
 
-function writeIdempotent(options: B3Options, invocation: ToolInvocation): void {
+function readIdempotent(name: string, input: B3ToolInput, options: B3Options): ToolInvocation | undefined {
+  const record = lookupRecord(options);
+  if (record === undefined) {
+    return undefined;
+  }
+  if (record.digest !== requestDigest(name, input, options)) {
+    throw new IdempotencyConflictError("idempotency key was already used for a different request");
+  }
+  return structuredClone(record.invocation);
+}
+
+function writeIdempotent(name: string, input: B3ToolInput, options: B3Options, invocation: ToolInvocation): void {
   if (options.idempotencyKey === undefined) {
     return;
   }
-  if (options.idempotency === undefined) {
+  const cache = requireCache(options.idempotencyKey, options.idempotency);
+  const scope = resolvedScope(input, options);
+  cache.set(options.idempotencyKey, {
+    deviceId: scope.deviceId,
+    authorizationRef: scope.authorizationRef,
+    bindingVersion: scope.bindingVersion,
+    sessionId: scope.sessionId,
+    digest: requestDigest(name, input, options),
+    invocation: structuredClone(invocation),
+  });
+}
+
+function lookupRecord(options: B3Options): IdempotencyRecord | undefined {
+  if (options.idempotencyKey === undefined) {
+    return undefined;
+  }
+  const found = requireCache(options.idempotencyKey, options.idempotency).get(options.idempotencyKey);
+  return found === undefined ? undefined : found;
+}
+
+function requireCache(key: string, cache: ToolIdempotencyCache | undefined): ToolIdempotencyCache {
+  assertKey(key);
+  if (cache === undefined) {
     throw new Error("openbot-b3 idempotencyKey requires an idempotency cache");
   }
-  options.idempotency.set(options.idempotencyKey, structuredClone(invocation));
+  return cache;
+}
+
+function resolvedScope(
+  input: B3ToolInput,
+  options: B3Options,
+): { deviceId: string | null; authorizationRef: string | null; bindingVersion: number | null; sessionId: string | null } {
+  return {
+    deviceId: options.scope?.deviceId ?? null,
+    authorizationRef: options.scope?.authorizationRef ?? null,
+    bindingVersion: options.scope?.bindingVersion ?? null,
+    sessionId: options.scope?.sessionId ?? input.sessionId ?? null,
+  };
+}
+
+function requestDigest(name: string, input: B3ToolInput, options: B3Options): string {
+  const scope = resolvedScope(input, options);
+  return JSON.stringify(stable({ name, input, ...scope }));
+}
+
+function stable(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => stable(item));
+  }
+  if (isPlainObject(value)) {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(value).sort()) {
+      const item = value[key];
+      if (item !== undefined) {
+        sorted[key] = stable(item);
+      }
+    }
+    return sorted;
+  }
+  return value;
 }
 
 function assertKey(key: string): void {

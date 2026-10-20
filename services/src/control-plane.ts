@@ -5,13 +5,13 @@ import {
   assertFrozenBinding,
   assertJsonValue,
   assertNoFrozenAliases,
-  assistantEqual,
   cloneAssistant,
   isPlainObject,
   type AssistantFields,
   type FrozenBinding,
 } from "../../contracts/src/index.ts";
 import { C5_HOSTED_BIN_HOST, XIAOZHI_OTA_HOST } from "../../adapters/metalio/src/constants.ts";
+import { invalidateDigitalHumanCache } from "../../integrations/openbot-b1/src/index.ts";
 import { ControlPlaneError, OtaDisabledError } from "./errors.ts";
 import { STAGING_CONTROL_SECTION, type StagingDb } from "./staging-db.ts";
 
@@ -91,10 +91,15 @@ export interface BindInput {
 
 export interface RebindInput {
   digitalHumanId?: string;
-  assistant?: unknown;
+  /** New grant profile. Field name stays `assistant`; the stored value is replaced. */
+  assistant?: AssistantFields;
   deviceId?: string;
   authorizationRef?: string;
   bindingVersion?: number;
+}
+
+export interface SessionLifecycleListener {
+  invalidateDevice(deviceId: string, reason: "revoked" | "rebound"): number;
 }
 
 export interface LabOtaInput {
@@ -140,6 +145,7 @@ export class ControlPlane {
   private readonly token: () => string;
   private readonly credentialTtlMs: number;
   private readonly store: StagingDb | undefined;
+  private readonly sessionLifecycles: Array<WeakRef<SessionLifecycleListener>> = [];
 
   constructor(options: ControlPlaneOptions = {}) {
     this.now = options.now ?? Date.now;
@@ -221,17 +227,20 @@ export class ControlPlane {
     return structuredClone(binding);
   }
 
+  /** Session books register here so revoke and rebind close the old run immediately. */
+  attachSessionLifecycle(listener: SessionLifecycleListener): void {
+    this.sessionLifecycles.push(new WeakRef(listener));
+  }
+
   /**
    * Rotates `authorizationRef` and increments `bindingVersion`.
-   * `deviceId` stays put. `assistant.*` is copied from the current binding.
-   * Passing `assistant`, `deviceId`, `authorizationRef`, or `bindingVersion` is rejected.
-   * Short-lived connection tokens are dropped. A revoke flag is cleared so a new token can be issued.
+   * `deviceId` stays put. `authorizationRef` and `bindingVersion` cannot be chosen by the caller.
+   * A new `assistant` value is stored under the same field name.
+   * Changing `digitalHumanId` without a new assistant profile is rejected.
+   * Short-lived tokens are dropped, the reply cache is cleared, and open sessions are closed.
    */
   rebind(deviceId: string, input: RebindInput = {}): FrozenBinding {
     assertNoFrozenAliases(input);
-    if ("assistant" in input) {
-      throw new FrozenFieldError("assistant");
-    }
     if (input.deviceId !== undefined) {
       throw new FrozenFieldError("deviceId");
     }
@@ -249,19 +258,19 @@ export class ControlPlane {
     if (digitalHumanId.length === 0) {
       throw new FrozenFieldError("digitalHumanId");
     }
+    const assistant = this.assistantForRebind(current, digitalHumanId, input.assistant);
     const next: FrozenBinding = {
       authorizationRef: this.authorizationRef(),
       bindingVersion: current.bindingVersion + 1,
       digitalHumanId,
       deviceId: current.deviceId,
-      assistant: cloneAssistant(current.assistant),
+      assistant,
     };
-    if (!assistantEqual(next.assistant, current.assistant)) {
-      throw new FrozenFieldError("assistant");
-    }
     this.dropCredentials(deviceId);
     this.revoked.delete(deviceId);
     this.bindings.set(deviceId, next);
+    invalidateDigitalHumanCache(this);
+    this.notifySessions(deviceId, "rebound");
     this.persist();
     return structuredClone(next);
   }
@@ -364,6 +373,7 @@ export class ControlPlane {
     }
     const clearedTokens = this.dropCredentials(deviceId);
     this.revoked.set(deviceId, { deviceId, revokedAtMs: this.now() });
+    this.notifySessions(deviceId, "revoked");
     this.persist();
     return { deviceId, clearedTokens };
   }
@@ -420,6 +430,37 @@ export class ControlPlane {
 
   massFlash(): never {
     throw new OtaDisabledError("mass_flash", "mass flash is disabled");
+  }
+
+  private assistantForRebind(
+    current: FrozenBinding,
+    digitalHumanId: string,
+    assistant: AssistantFields | undefined,
+  ): AssistantFields {
+    if (assistant !== undefined) {
+      assertJsonValue(assistant, "assistant");
+      if (!isPlainObject(assistant)) {
+        throw new FrozenFieldError("assistant");
+      }
+      return cloneAssistant(assistant);
+    }
+    if (digitalHumanId !== current.digitalHumanId) {
+      throw new ControlPlaneError("rebind_profile", "rebind to a new digitalHumanId requires the new assistant profile");
+    }
+    return cloneAssistant(current.assistant);
+  }
+
+  private notifySessions(deviceId: string, reason: "revoked" | "rebound"): void {
+    let index = 0;
+    while (index < this.sessionLifecycles.length) {
+      const listener = this.sessionLifecycles[index]?.deref();
+      if (!listener) {
+        this.sessionLifecycles.splice(index, 1);
+        continue;
+      }
+      listener.invalidateDevice(deviceId, reason);
+      index += 1;
+    }
   }
 
   private requireBinding(deviceId: string): FrozenBinding {
