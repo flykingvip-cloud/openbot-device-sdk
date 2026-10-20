@@ -1,6 +1,6 @@
 # A4 认领、绑定与 OTA 控制面
 
-`services` 里的 `ControlPlane` 是实验用的内存控制面。它不监听端口，不下载固件，不写设备分区。
+`services` 里的 `ControlPlane` 是实验控制面。不传 `store` 时状态在内存里。传入文件或 sqlite 的 `StagingDb` 后，认领、绑定、实验 OTA、短时凭证和吊销可以在新进程里读回。它不监听端口，不下载固件，不写设备分区。控制台用法见 [a5-console-sim.md](a5-console-sim.md)。
 
 ## 认领
 
@@ -42,3 +42,9 @@ B5 stand-in `GET /v1/device/ota` 的 `flash` 也是 false。openbot-vp 的当前
 ## 与固件 OTA 的边界
 
 Metalio 自己的 `Ota::Upgrade` 会 GET `firmware.url` 并写入下一分区。本控制面不产生这个 URL，因此不能驱动量产升级，也不能批量烧录。
+
+## 重连与吊销
+
+`issueConnectionCredential` 给已绑定设备发一个短时 token。`refreshConnectionCredential` 是本地 stub：只在当前 token 仍有效且设备未吊销时轮换它，不访问网络。过期 token 可以刷新，但不能用来提交摄像头结果。
+
+`revoke` 清掉该设备的短时 token，并留下吊销标记。冻结绑定和 `assistant.*` 不动。吊销之后到达的摄像头结果一律 `camera_revoked`，不管 `capturedAtMs` 是不是更早。`rebind` 会丢掉剩余 token、清掉吊销标记，并按原规则轮换 `authorizationRef`。

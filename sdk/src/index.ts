@@ -5,8 +5,10 @@ export {
   LIVE_STUB_ENV,
   OBSOLETE_CONTRACT_REPO,
   OBSOLETE_CONTRACT_SHA_PREFIX,
+  OPENBOT_CONTRACT_PR,
   OPENBOT_CONTRACT_REPO,
   OPENBOT_CONTRACT_SHA,
+  PREVIOUS_CONTRACT_SHA,
   assertFrozenBinding,
   assistantEqual,
   loadStandInDocument,
@@ -51,5 +53,18 @@ export {
 } from "./device-tools.ts";
 export type { DeviceToolInput, DeviceToolName, DeviceToolResult } from "./device-tools.ts";
 
-export { ControlPlane, OtaDisabledError } from "../../services/src/index.ts";
-export type { ClaimTicket, LabOtaIntent } from "../../services/src/index.ts";
+export {
+  ControlPlane,
+  FileStagingDb,
+  MemoryStagingDb,
+  OtaDisabledError,
+  SqliteStagingDb,
+  openStaging,
+} from "../../services/src/index.ts";
+export type {
+  CameraResultReceipt,
+  ClaimTicket,
+  ConnectionCredential,
+  LabOtaIntent,
+  StagingDb,
+} from "../../services/src/index.ts";

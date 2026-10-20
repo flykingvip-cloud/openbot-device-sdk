@@ -6,7 +6,7 @@ import { readDigitalHuman } from "../integrations/openbot-b1/src/index.ts";
 
 test(
   "live digital-human stub",
-  { skip: process.env[LIVE_STUB_ENV] ? false : "OPENBOT_DEVICE_DH_STUB_URL is unset; waiting for an Agent B SHA" },
+  { skip: process.env[LIVE_STUB_ENV] ? false : "OPENBOT_DEVICE_DH_STUB_URL is unset; pre-merge tip was not readable" },
   async () => {
     const base = process.env[LIVE_STUB_ENV];
     assert.ok(base);
