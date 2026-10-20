@@ -10,9 +10,11 @@ import {
   type StagingDb,
 } from "../../services/src/index.ts";
 
-const PINNED_SHA = "554910d835f3baadb1d753532ad510b1b477be09";
-const PIN_LINE = "合并前 tip: openbot-vp PR #7。正式合并 SHA 尚未提供，收到后替换此针。";
-const ACCESS_LINE = "访问限制: 读取 flykingvip-cloud/openbot-vp 返回 404，B0–B5 路由仍是本地 stand-in，未按该 tip 改写。";
+const PINNED_SHA = "8abdc7f9a0ae49c340de712fbba235b1064f6c7d";
+const PIN_LINE =
+  "正式针: openbot-vp main，PR #7 的 squash merge。临时 tip 554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba 已作废。";
+const ACCESS_LINE =
+  "访问限制: 读取 flykingvip-cloud/openbot-vp 返回 404。Agent B 报告该提交含 B0–B5 stub，但路由未从该提交抄出，仍用本地 stand-in。";
 const DEVICE_ID = "dev-console";
 const DIGITAL_HUMAN_ID = "dh-console";
 const NOW = 1_700_000_000_000;
@@ -303,6 +305,6 @@ function catchCode(fn: () => unknown): string {
 
 function assertPinnedSha(): void {
   if (OPENBOT_CONTRACT_SHA !== PINNED_SHA) {
-    throw new Error("OPENBOT_CONTRACT_SHA drifted from the pre-merge tip");
+    throw new Error("OPENBOT_CONTRACT_SHA drifted from the official main SHA");
   }
 }

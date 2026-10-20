@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  INVALIDATED_CONTRACT_SHAS,
   OPENBOT_CONTRACT_PR,
   OPENBOT_CONTRACT_REPO,
   OPENBOT_CONTRACT_SHA,
@@ -32,11 +33,14 @@ export interface StandInDocument {
     sha: typeof OPENBOT_CONTRACT_SHA;
     repo: typeof OPENBOT_CONTRACT_REPO;
     pr: typeof OPENBOT_CONTRACT_PR;
-    status: "pre-merge-tip";
-    officialMergeSha: null;
+    status: "main";
+    merge: "squash";
+    officialMergeSha: typeof OPENBOT_CONTRACT_SHA;
     previousSha: typeof PREVIOUS_CONTRACT_SHA;
+    previousShaStatus: "invalidated";
+    invalidatedShas: typeof INVALIDATED_CONTRACT_SHAS;
     deviceApiRange: "B0-B5";
-    deviceApisPresent: "unverified";
+    deviceApisPresent: "reported-stub";
     routesAligned: false;
     access: "unreadable-404";
     obsolete: {
@@ -87,24 +91,31 @@ export function parseStandInDocument(value: unknown): StandInDocument {
     throw new Error("stand-in document kind mismatch");
   }
   if (value.routeSource !== "local-mock-access-limited") {
-    throw new Error("stand-in routes must stay local until the PR tip can be read");
+    throw new Error("stand-in routes must stay local until the main tree can be read");
   }
   if (!isRecord(value.contract) || value.contract.sha !== OPENBOT_CONTRACT_SHA || value.contract.repo !== OPENBOT_CONTRACT_REPO) {
     throw new Error("stand-in document is not pinned to flykingvip-cloud/openbot-vp");
   }
-  if (value.contract.pr !== OPENBOT_CONTRACT_PR || value.contract.status !== "pre-merge-tip") {
-    throw new Error("stand-in pin must stay the pre-merge tip of openbot-vp pull 7");
+  if (value.contract.pr !== OPENBOT_CONTRACT_PR || value.contract.status !== "main" || value.contract.merge !== "squash") {
+    throw new Error("stand-in pin must be the squash merge of openbot-vp pull 7 on main");
   }
-  if (value.contract.officialMergeSha !== null || value.contract.previousSha !== PREVIOUS_CONTRACT_SHA) {
-    throw new Error("official merge SHA is not published; previous pin must stay recorded");
+  if (value.contract.officialMergeSha !== OPENBOT_CONTRACT_SHA || value.contract.previousSha !== PREVIOUS_CONTRACT_SHA) {
+    throw new Error("official merge SHA must be the current pin; previousSha must record the invalidated pre-merge tip");
+  }
+  if (value.contract.previousShaStatus !== "invalidated") {
+    throw new Error("previousSha is invalidated and must not be used as the pin");
+  }
+  assertExactList(value.contract.invalidatedShas, INVALIDATED_CONTRACT_SHAS, "invalidated SHAs");
+  if ((INVALIDATED_CONTRACT_SHAS as readonly string[]).includes(OPENBOT_CONTRACT_SHA)) {
+    throw new Error("current pin is an invalidated SHA");
   }
   if (
     value.contract.deviceApiRange !== "B0-B5" ||
-    value.contract.deviceApisPresent !== "unverified" ||
+    value.contract.deviceApisPresent !== "reported-stub" ||
     value.contract.routesAligned !== false ||
     value.contract.access !== "unreadable-404"
   ) {
-    throw new Error("stand-in routes must stay local until the PR tip can be read");
+    throw new Error("stand-in routes must stay local until the main tree can be read");
   }
   if (typeof value.contract.note !== "string" || value.contract.note.length === 0) {
     throw new Error("stand-in note is missing");

@@ -41,7 +41,8 @@ function helpText(): string {
     "  默认状态文件 var/device-sim.sqlite（已 gitignore）",
     "  每次运行都会清空该文件，然后走认领/绑定、B1–B3 stand-in、refresh stub、吊销和实验 OTA",
     "  不连接串口、摄像头或生产 OTA。flash 与 massFlash 会失败",
-    "  合约针暂时是 PR #7 合并前 tip 554910d835f3baadb1d753532ad510b1b477be09；正式合并 SHA 到来后替换",
+    "  合约针是 openbot-vp main 的 squash merge 8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
+    "  已作废: 554910d835f3baadb1d753532ad510b1b477be09 与 dd6c85cae086d90c519ff1be7ad08e20d4644bba",
     "  本环境读不到 openbot-vp（404），B0–B5 仍走本地 stand-in",
   ].join("\n");
 }
