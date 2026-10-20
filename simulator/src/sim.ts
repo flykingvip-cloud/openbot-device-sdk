@@ -10,7 +10,7 @@ import {
 import { speakVisibleAssistant } from "../../integrations/openbot-b3/src/index.ts";
 import { ControlPlane, ControlPlaneError, openStaging, type StagingDb } from "../../services/src/index.ts";
 
-const PINNED_SHA = "41b7561222775e4ad00b056e2a535c7f950bcbe9";
+const PINNED_SHA = "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a";
 const DEVICE_ID = "dev-sim";
 const DIGITAL_HUMAN_ID = "dh-sim";
 const SECRET = "do-not-speak-secret";
@@ -72,8 +72,8 @@ export async function runSimulator(statePath: string): Promise<SimulatorReport> 
   say(lines, "设备模拟器（无真机、无网络、无烧录）");
   say(lines, `状态: ${statePath}`);
   say(lines, `合约针: ${OPENBOT_CONTRACT_SHA}`);
-  say(lines, "正式针: openbot-vp main，PR #9 的 squash merge。已作废: 536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。");
-  say(lines, "OpenAPI 已按 41b7561222775e4ad00b056e2a535c7f950bcbe9 入库（更早的树拉取曾返回 404）。routesAligned 为 true。B2–B5 仍用本地 stand-in。");
+  say(lines, "正式针: openbot-vp main，PR #10 的 squash merge。已作废: 41b7561222775e4ad00b056e2a535c7f950bcbe9、536a963b119f0a00675516401c52dd0f6187b196、8abdc7f9a0ae49c340de712fbba235b1064f6c7d、554910d835f3baadb1d753532ad510b1b477be09 与更早的 dd6c85cae086d90c519ff1be7ad08e20d4644bba。");
+  say(lines, "OpenAPI 已按 bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a 入库（更早的树拉取曾返回 404）。routesAligned 为 true。B2–B5 仍用本地 stand-in。");
 
   let sessionId = "";
   let b1Idempotent = false;

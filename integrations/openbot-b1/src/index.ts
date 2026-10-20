@@ -4,6 +4,8 @@ import {
   assertFrozenBinding,
   cloneAssistant,
   digitalHumanProfileUrl,
+  resolveStubLocation,
+  serviceGrantHeaders,
   standInApi,
   type AssistantFields,
   type FrozenBinding,
@@ -38,6 +40,7 @@ const cacheByPlane = new WeakMap<object, Map<string, DigitalHumanProfile>>();
  * Consumer for B1 `GET /api/integrations/v1/digital-humans/{digitalHumanId}`.
  * Without `OPENBOT_DEVICE_DH_STUB_URL`, reads the local control plane.
  * With the env set, GETs `{base}/api/integrations/v1/digital-humans/{id}`.
+ * Service Basic and `X-OpenBot-Grant-Credential` are sent when both are set.
  * A repeated `idempotencyKey` returns the first profile unchanged.
  */
 export async function readDigitalHuman(digitalHumanId: string, options: B1Options = {}): Promise<DigitalHumanProfile> {
@@ -54,7 +57,7 @@ async function loadDigitalHuman(digitalHumanId: string, options: B1Options): Pro
   const env = options.env ?? process.env;
   const stub = env[LIVE_STUB_ENV];
   if (stub !== undefined && stub.length > 0) {
-    return readLiveStub(stub, digitalHumanId, options.fetchImpl ?? fetch);
+    return readLiveStub(stub, digitalHumanId, options.fetchImpl ?? fetch, env);
   }
   if (!options.plane) {
     throw new Error("openbot-b1 stand-in requires a ControlPlane when OPENBOT_DEVICE_DH_STUB_URL is unset");
@@ -133,10 +136,18 @@ function cacheKey(digitalHumanId: string, idempotencyKey: string): string {
   return `${idempotencyKey}\n${digitalHumanId}`;
 }
 
-async function readLiveStub(baseUrl: string, digitalHumanId: string, fetchImpl: typeof fetch): Promise<DigitalHumanProfile> {
-  const url = digitalHumanProfileUrl(baseUrl, digitalHumanId);
-  const response = await fetchImpl(url);
+async function readLiveStub(
+  baseUrl: string,
+  digitalHumanId: string,
+  fetchImpl: typeof fetch,
+  env: NodeJS.ProcessEnv,
+): Promise<DigitalHumanProfile> {
+  const location = resolveStubLocation(baseUrl);
+  const url = digitalHumanProfileUrl(location.origin, digitalHumanId);
+  const auth = serviceGrantHeaders(env);
+  const response = await fetchImpl(url, auth === undefined ? undefined : { headers: auth });
   if (!response.ok) {
+    await response.body?.cancel();
     throw new Error(`digital human stub failed: ${response.status}`);
   }
   const body: unknown = await response.json();

@@ -35,14 +35,16 @@ function claimAndBind(control: ControlPlane, deviceId = "dev-ota"): void {
 
 test("config fetch distinguishes unclaimed and claimed, and never offers firmware", () => {
   const control = plane();
-  const missing = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790");
+  const missing = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790", { env: {} });
   assert.equal(missing.contractSha, OPENBOT_CONTRACT_SHA);
-  assert.equal(missing.contractSha, "41b7561222775e4ad00b056e2a535c7f950bcbe9");
+  assert.equal(missing.contractSha, "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a");
   assert.equal(missing.routesAligned, true);
   assert.equal(missing.claimStatus, "missing");
   assert.equal(missing.token, null);
   assert.equal(missing.bindingVersion, null);
   assert.equal(missing.firmwareUrl, null);
+  assert.equal(missing.gatewayAgentId, null);
+  assert.equal(missing.agentSessionForce, false);
   assert.equal(missing.executable, false);
   assert.equal(missing.force, 0);
   assert.equal(missing.voiceWssUrl, LAB_VOICE_WSS_URL);
@@ -77,6 +79,21 @@ test("config fetch distinguishes unclaimed and claimed, and never offers firmwar
 
   assert.throws(() => control.flash(), OtaDisabledError);
   assert.throws(() => control.massFlash(), OtaDisabledError);
+
+  const mapped = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790", {
+    env: {
+      OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID: "agent-lab",
+      OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE: "1",
+    },
+  });
+  assert.equal(mapped.gatewayAgentId, "agent-lab");
+  assert.equal(mapped.agentSessionForce, true);
+  assert.equal(mapped.firmwareUrl, null);
+  assert.equal(mapped.force, 0);
+  const notForced = buildLabDeviceConfig(control, "dev-ota", "http://127.0.0.1:8790", {
+    env: { OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID: "agent-lab", OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE: "true" },
+  });
+  assert.equal(notForced.agentSessionForce, false);
 });
 
 test("revoke clears the config token and rebind bumps bindingVersion", () => {

@@ -437,14 +437,21 @@ export class LabCameraSession {
 export async function runLabCameraCapture(
   session: LabCameraSession,
   request: CameraToolRequest,
-  options: { baseUrl: string; fetchImpl?: typeof fetch; hooks?: LabCameraHooks },
+  options: {
+    baseUrl: string;
+    fetchImpl?: typeof fetch;
+    hooks?: LabCameraHooks;
+    /** Service Basic and grant credential. Applied to the ticket and result POSTs, not the ticket PUT. */
+    headers?: Record<string, string>;
+  },
 ): Promise<CameraCaptureResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const base = options.baseUrl.replace(/\/$/, "");
+  const authHeaders = options.headers ?? {};
   const contentType = request.contentType ?? "image/png";
   const ticketResponse = await fetchImpl(`${base}${TICKET_PATH}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...authHeaders },
     body: JSON.stringify({
       requestId: request.requestId,
       bindingVersion: request.bindingVersion,
@@ -459,7 +466,7 @@ export async function runLabCameraCapture(
   const ticket = (await ticketResponse.json()) as { ticket: string; mediaId: string; uploadPath: string; expiresAt: string };
   options.hooks?.afterTicket?.();
   const bytes = labCameraFixture(contentType);
-  const upload = await fetchImpl(`${base}${ticket.uploadPath}`, {
+  const upload = await fetchImpl(resolveTicketUploadUrl(base, ticket.uploadPath), {
     method: "PUT",
     headers: { "content-type": contentType },
     body: new Uint8Array(bytes),
@@ -482,6 +489,7 @@ export async function runLabCameraCapture(
     method: "POST",
     headers: {
       "content-type": "application/json",
+      ...authHeaders,
       ...(request.idempotencyKey === undefined ? {} : { "Idempotency-Key": request.idempotencyKey }),
     },
     body: JSON.stringify({
@@ -528,6 +536,26 @@ export function startLabMediaServer(
     });
   });
   return listen(server, host, options.port ?? 0);
+}
+
+function resolveTicketUploadUrl(base: string, uploadPath: string): string {
+  if (uploadPath.startsWith("https://") || uploadPath.startsWith("http://")) {
+    let url: URL;
+    try {
+      url = new URL(uploadPath);
+    } catch {
+      throw new LabMediaError("MEDIA_INVALID", "upload path is not a URL", 400);
+    }
+    const host = url.hostname.toLowerCase();
+    if (host.includes("tenclass") || (host !== "127.0.0.1" && host !== "localhost" && host !== "::1")) {
+      throw new LabMediaError("MEDIA_INVALID", "upload ticket host is not loopback", 400);
+    }
+    return url.toString();
+  }
+  if (!uploadPath.startsWith("/")) {
+    throw new LabMediaError("MEDIA_INVALID", "upload path must be absolute", 400);
+  }
+  return `${base}${uploadPath}`;
 }
 
 function inspectFixture(bytes: Buffer, contentType: LabMediaContentType): StoredImage {

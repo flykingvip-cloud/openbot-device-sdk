@@ -19,11 +19,13 @@ B3 的 `invokeOpenBotTool("camera.capture", …)` 要带上 `camera` 网关和�
 
 ## 有 live stub 时
 
-设置 `OPENBOT_DEVICE_DH_STUB_URL`（例如 `http://127.0.0.1:8787`）后，可以调用 `runLabCameraCapture(session, request, { baseUrl })`。它会把票据、PUT 和结果发到：
+设置 `OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787`，以及 service Basic、`X-OpenBot-Grant-Credential`、`authorizationRef`、`bindingVersion`、`deviceId` 后：
 
-`{OPENBOT_DEVICE_DH_STUB_URL}/api/integrations/v1/...`
+```bash
+npm run live-stub -- --camera
+```
 
-没设置时测试不访问网络，只走本地 stand-in。这个地址不是生产上传主机。`readUrl` 只指向 `http://127.0.0.1/lab-media/{mediaId}`，字节留在本进程里。
+票据 POST 和结果 POST 带这些凭证。PUT 只靠票据。图片仍是 1×1 PNG 夹具。凭证或 URL 没设时不访问 stub，本地 stand-in 照旧。这个地址不是生产上传主机。细节见 [live-stub.md](live-stub.md)。
 
 ## 不做的事
 

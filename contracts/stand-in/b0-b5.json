@@ -3,15 +3,16 @@
   "status": "local-stand-in",
   "routeSource": "local-stand-in",
   "contract": {
-    "sha": "41b7561222775e4ad00b056e2a535c7f950bcbe9",
+    "sha": "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a",
     "repo": "https://github.com/flykingvip-cloud/openbot-vp",
-    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/9",
+    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/10",
     "status": "main",
     "merge": "squash",
-    "officialMergeSha": "41b7561222775e4ad00b056e2a535c7f950bcbe9",
-    "previousSha": "536a963b119f0a00675516401c52dd0f6187b196",
+    "officialMergeSha": "bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a",
+    "previousSha": "41b7561222775e4ad00b056e2a535c7f950bcbe9",
     "previousShaStatus": "invalidated",
     "invalidatedShas": [
+      "41b7561222775e4ad00b056e2a535c7f950bcbe9",
       "536a963b119f0a00675516401c52dd0f6187b196",
       "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
       "554910d835f3baadb1d753532ad510b1b477be09",
@@ -27,7 +28,7 @@
       "status": "obsolete"
     },
     "liveStubEnv": "OPENBOT_DEVICE_DH_STUB_URL",
-    "note": "Official pin is the squash merge of openbot-vp pull 9 on main, SHA 41b7561222775e4ad00b056e2a535c7f950bcbe9. The OpenAPI at that SHA is vendored and consumer paths plus SSE event enums match, so routesAligned is true. Invalidated and not officialMergeSha: 536a963b119f0a00675516401c52dd0f6187b196 (pull 8 squash), 8abdc7f9a0ae49c340de712fbba235b1064f6c7d (pull 7 squash), 554910d835f3baadb1d753532ad510b1b477be09, and dd6c85cae086d90c519ff1be7ad08e20d4644bba. B0 and B2-B5 below remain local stand-in handlers and are not the vendored grants, conversations, runs, or media routes. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
+    "note": "Official pin is the squash merge of openbot-vp pull 10 on main, SHA bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a. The OpenAPI at that SHA is vendored and consumer paths plus SSE event enums match, so routesAligned is true. Invalidated and not officialMergeSha: 41b7561222775e4ad00b056e2a535c7f950bcbe9 (pull 9 squash), 536a963b119f0a00675516401c52dd0f6187b196 (pull 8 squash), 8abdc7f9a0ae49c340de712fbba235b1064f6c7d (pull 7 squash), 554910d835f3baadb1d753532ad510b1b477be09, and dd6c85cae086d90c519ff1be7ad08e20d4644bba. B0 and B2-B5 below remain local stand-in handlers and are not the vendored grants, conversations, runs, or media routes. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
   },
   "consumerChecks": {
     "B1": ["idempotent-read"],

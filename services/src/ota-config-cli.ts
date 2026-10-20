@@ -94,7 +94,7 @@ function helpText(): string {
     "用法: npm run ota-config -- [--listen 127.0.0.1:8790] [--state 路径]",
     "  实验用配置 HTTP。设备可读取 voice WSS 占位、device API 前缀、bindingVersion 和短时 token",
     "  默认状态文件 var/ota-config.sqlite（已 gitignore）。以 .json 结尾时用 JSON",
-    `  合约针 ${OPENBOT_CONTRACT_SHA}（openbot-vp main，PR #9 squash）`,
+    `  合约针 ${OPENBOT_CONTRACT_SHA}（openbot-vp main，PR #10 squash）`,
     `  已作废、不是 officialMergeSha: ${PREVIOUS_CONTRACT_SHA}`,
     "  token 只在已认领且已绑定、且未吊销时签发。未认领没有 token",
     "  firmwareUrl 固定 null。flash 与 massFlash 不在这里执行",

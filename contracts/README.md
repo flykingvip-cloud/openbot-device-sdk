@@ -1,17 +1,17 @@
 # 合约针
 
-`OPENBOT_CONTRACT_SHA` = `41b7561222775e4ad00b056e2a535c7f950bcbe9`
+`OPENBOT_CONTRACT_SHA` = `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`
 
-这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/9> squash merge 到 `main` 之后的正式提交。冻结字段名和能力路由前缀 `/api/integrations/v1` 没有改。该提交的 OpenAPI 已放入 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，所以 `routesAligned=true`。
+这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/10> squash merge 到 `main` 之后的正式提交。冻结字段名和能力路由前缀 `/api/integrations/v1` 没有改。该提交的 OpenAPI 已放入 `contracts/openbot/device-digital-human.openapi.yaml`。消费者路径和 SSE 事件名与文件一致，所以 `routesAligned=true`。
 
-`previousSha` = `536a963b119f0a00675516401c52dd0f6187b196`，状态 `invalidated`。那是 PR #8 的 squash merge，不能再当作 `officialMergeSha`。
+`previousSha` = `41b7561222775e4ad00b056e2a535c7f950bcbe9`，状态 `invalidated`。那是 PR #9 的 squash merge，不能再当作 `officialMergeSha`。
 
-同样作废、写在 `invalidatedShas` 里的还有 PR #7 squash `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、PR #7 合并前 tip `554910d835f3baadb1d753532ad510b1b477be09`，以及更早的 `dd6c85cae086d90c519ff1be7ad08e20d4644bba`。
+同样作废、写在 `invalidatedShas` 里的还有 PR #8 squash `536a963b119f0a00675516401c52dd0f6187b196`、PR #7 squash `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、PR #7 合并前 tip `554910d835f3baadb1d753532ad510b1b477be09`，以及更早的 `dd6c85cae086d90c519ff1be7ad08e20d4644bba`。
 
 作废短针：`68e062e`，仓库 `upbeyond/openbot`。不要再读它，也不要读已暂停的 `upbeyond/openbot-device-sdk`。
 
 B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`。B0 与 B2–B5 仍是 `stand-in/b0-b5.json` 里的本地 mock，没有改成 grants / conversations / runs / media 的实现。
 
-只有设置了 `OPENBOT_DEVICE_DH_STUB_URL` 时才访问数字人 live stub；未设置时测试跳过，不失败。Stub 根上的 `GET /healthz` 不在 `/api/integrations/v1` 下面，也不在这份 OpenAPI 里。
+只有设置了 `OPENBOT_DEVICE_DH_STUB_URL` 时才访问数字人 live stub；未设置时测试跳过，不失败。Stub 根上的 `GET /healthz` 不在 `/api/integrations/v1` 下面，也不在这份 OpenAPI 里。`npm run live-stub` 只探测 loopback。数字人 GET 需要 staging.md 里的 service Basic 和 grant，未设置时跳过。
 
 冻结字段名保持不变：`authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`，以及 `assistant.*`。别名（例如 `device_id`、`assistantProfile`）会被拒绝。

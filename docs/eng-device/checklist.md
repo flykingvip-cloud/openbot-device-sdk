@@ -4,16 +4,18 @@
 
 ## 合约
 
-- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `41b7561222775e4ad00b056e2a535c7f950bcbe9`
-- [ ] 文档写明这是 openbot-vp `main` 上 PR #9 的 squash merge
-- [ ] `previousSha` 为已作废的 PR #8 squash `536a963b119f0a00675516401c52dd0f6187b196`，它不是 `officialMergeSha`
-- [ ] `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
+- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `bc3d9fda20f1806b6f47be4607ed4fdcc2fa4c9a`
+- [ ] 文档写明这是 openbot-vp `main` 上 PR #10 的 squash merge
+- [ ] `previousSha` 为已作废的 PR #9 squash `41b7561222775e4ad00b056e2a535c7f950bcbe9`，它不是 `officialMergeSha`
+- [ ] `536a963b119f0a00675516401c52dd0f6187b196`、`8abdc7f9a0ae49c340de712fbba235b1064f6c7d`、`554910d835f3baadb1d753532ad510b1b477be09` 与 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 仍在 `invalidatedShas` 里
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 是 `41b75612…` 的文件；路径和 SSE 事件名一致时 `routesAligned` 为 true
-- [ ] B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`；B0 与 B2–B5 仍是本地 stand-in
+- [ ] `contracts/openbot/device-digital-human.openapi.yaml` 是 `bc3d9fda…` 的文件；路径和 SSE 事件名一致时 `routesAligned` 为 true
+- [ ] 实验配置带 `gatewayAgentId`；默认会话键是 `device-dh:<digitalHumanId>:<conversationId>`；只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 才接受 UI 会话键
+- [ ] B1 live GET 使用 `/api/integrations/v1/digital-humans/{digitalHumanId}`；B0 与 B2–B5 的本地 stand-in 仍在
+- [ ] `npm run live-stub` 只对 loopback 的 `GET /healthz`（根路径）和可选的数字人 / 合成图摄像头发请求
 - [ ] 冻结字段仍是 `authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`、`assistant.*`
-- [ ] 未设置 `OPENBOT_DEVICE_DH_STUB_URL` 时不访问 live stub
+- [ ] 未设置 `OPENBOT_DEVICE_DH_STUB_URL` 时不访问 live stub；未设置 service Basic 和 grant 时跳过数字人与摄像头 live 用例
 
 ## A2 语音
 
@@ -56,3 +58,12 @@
 - [ ] B2 stand-in 覆盖幂等、`SESSION_BUSY`、`CURSOR_EXPIRED`、`eventId` 去重
 - [ ] B3 TTS 只包含 `assistant.visible.speech`
 - [ ] `flash()` 与 `massFlash()` 仍然失败，没有活的固件 URL
+
+## 验收阻断
+
+这些仍未完成。勾上任何一项都不表示 A0–A5 已经灰度。
+
+- [ ] 真实 Opus / ASR / TTS（不是 `OB-OPUS-PLACEHOLDER`）
+- [ ] 工程机上的 Metalio 固件补丁和编译证据
+- [ ] 生产级设备身份
+- [ ] 真实 OV2710 采集
