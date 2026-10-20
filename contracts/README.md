@@ -1,12 +1,12 @@
 # 合约针
 
-`OPENBOT_CONTRACT_SHA` = `554910d835f3baadb1d753532ad510b1b477be09`
+`OPENBOT_CONTRACT_SHA` = `8abdc7f9a0ae49c340de712fbba235b1064f6c7d`
 
-这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/7> 的**合并前 tip**，不是 `main` 上的正式合并提交。Agent B 说明 B0–B5 已经在这个 tip 上。本环境请求该仓库返回 404，没有读到路由，因此 `stand-in/b0-b5.json` 仍是本地 mock（`routeSource=local-mock-access-limited`，`routesAligned=false`）。路径没有按 PR tip 改写。
+这是 <https://github.com/flykingvip-cloud/openbot-vp/pull/7> squash merge 到 `main` 之后的正式提交。Agent B 报告该提交包含 B0–B5 stub。本环境请求该仓库仍然返回 404，没有读到路由，因此 `stand-in/b0-b5.json` 仍是本地 mock（`routeSource=local-mock-access-limited`，`routesAligned=false`）。路径没有按该提交改写。
 
-上一枚针 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 是没有父提交的恢复快照，当时读不到 B0–B5。它保留在 stand-in 的 `previousSha` 里，不再当作当前针。
+`previousSha` = `554910d835f3baadb1d753532ad510b1b477be09`，状态 `invalidated`。那是 PR #7 的合并前 tip，不能再当作合约针。
 
-Agent B 把 PR 合并进 `main` 之后会给出正式 SHA。收到那个 SHA 之前，不要把 `554910d8…` 写成已发布的 main 针，也不要把它换成别的提交。
+更早的 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 同样作废。它是没有父提交的恢复快照，写在 `invalidatedShas` 里，不是当前的 `previousSha`。
 
 作废指针：`68e062e`，仓库 `upbeyond/openbot`。不要再读它，也不要读已暂停的 `upbeyond/openbot-device-sdk`。
 

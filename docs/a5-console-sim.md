@@ -2,17 +2,18 @@
 
 不需要工程机，也不重新落地 Agent B 的 B0–B5。控制台和模拟器都在本机状态文件里走完认领、绑定、实验 OTA、短时凭证和吊销。
 
-## 合约针（合并前）
+## 合约针
 
 | 项 | 值 |
 |---|---|
-| `OPENBOT_CONTRACT_SHA` | `554910d835f3baadb1d753532ad510b1b477be09` |
-| 来源 | <https://github.com/flykingvip-cloud/openbot-vp/pull/7> 的合并前 tip |
-| 正式合并 SHA | 还没有。Agent B 合并到 `main` 之后会另给 SHA，到时再替换 |
-| 上一枚针 | `dd6c85cae086d90c519ff1be7ad08e20d4644bba`（无父提交的恢复快照） |
-| 本环境 | 读取 `flykingvip-cloud/openbot-vp` 返回 **404** |
+| `OPENBOT_CONTRACT_SHA` | `8abdc7f9a0ae49c340de712fbba235b1064f6c7d` |
+| 来源 | openbot-vp `main`，<https://github.com/flykingvip-cloud/openbot-vp/pull/7> 的 squash merge |
+| 内容 | Agent B 报告为 B0–B5 stub |
+| `previousSha` | `554910d835f3baadb1d753532ad510b1b477be09`，合并前 tip，**已作废** |
+| 更早作废 | `dd6c85cae086d90c519ff1be7ad08e20d4644bba` |
+| 本环境 | 读取 `flykingvip-cloud/openbot-vp` 仍返回 **404** |
 
-Agent B 说明 B0–B5 已经在这个 tip 上。这里读不到该仓库，所以 `contracts/stand-in/b0-b5.json` 仍是本地 mock，`routesAligned` 为 false，`routeSource` 为 `local-mock-access-limited`。没有按 PR tip 改路由。冻结字段名不变。
+这里读不到该提交的文件，所以 `contracts/stand-in/b0-b5.json` 仍是本地 mock，`routesAligned` 为 false，`routeSource` 为 `local-mock-access-limited`。没有按 main 上的 stub 改路由。冻结字段名不变。
 
 ## 怎么跑
 
@@ -56,4 +57,4 @@ npm run sim -- --help
 - B2：相同幂等键返回同一会话；另一把键得到 `SESSION_BUSY`。重复 `eventId` 不新增事件。游标到期得到 `CURSOR_EXPIRED`。
 - B3：`assistant.tts` 只念 `assistant.visible.speech`。`assistant` 里其余字段不会进报文。`ota.flash`、`ota.massFlash`、`system.reboot` 仍然失败。
 
-这些行为写在 stand-in 的 `consumerChecks` 里，不是从 PR #7 抄来的路由表。
+这些行为写在 stand-in 的 `consumerChecks` 里。正式 SHA 已经是 main 上的 squash merge，但本环境 404，这些路径不是从该提交抄来的路由表。

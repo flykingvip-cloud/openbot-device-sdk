@@ -3,14 +3,20 @@
   "status": "local-stand-in",
   "routeSource": "local-mock-access-limited",
   "contract": {
-    "sha": "554910d835f3baadb1d753532ad510b1b477be09",
+    "sha": "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
     "repo": "https://github.com/flykingvip-cloud/openbot-vp",
     "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/7",
-    "status": "pre-merge-tip",
-    "officialMergeSha": null,
-    "previousSha": "dd6c85cae086d90c519ff1be7ad08e20d4644bba",
+    "status": "main",
+    "merge": "squash",
+    "officialMergeSha": "8abdc7f9a0ae49c340de712fbba235b1064f6c7d",
+    "previousSha": "554910d835f3baadb1d753532ad510b1b477be09",
+    "previousShaStatus": "invalidated",
+    "invalidatedShas": [
+      "554910d835f3baadb1d753532ad510b1b477be09",
+      "dd6c85cae086d90c519ff1be7ad08e20d4644bba"
+    ],
     "deviceApiRange": "B0-B5",
-    "deviceApisPresent": "unverified",
+    "deviceApisPresent": "reported-stub",
     "routesAligned": false,
     "access": "unreadable-404",
     "obsolete": {
@@ -19,7 +25,7 @@
       "status": "obsolete"
     },
     "liveStubEnv": "OPENBOT_DEVICE_DH_STUB_URL",
-    "note": "Pre-merge tip of openbot-vp pull 7. Agent B says B0-B5 landed on that tip. This environment received HTTP 404 for the repository, so the paths below stay local mocks and were not copied from the tip. Replace OPENBOT_CONTRACT_SHA with the official main merge SHA when Agent B sends it. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
+    "note": "Official pin is the squash merge of openbot-vp pull 7 on main. Agent B reports a B0-B5 stub at this SHA. Invalidated: pre-merge tip 554910d835f3baadb1d753532ad510b1b477be09 and older snapshot dd6c85cae086d90c519ff1be7ad08e20d4644bba. This environment still receives HTTP 404 for the repository, so the paths below stay local mocks and were not copied from that commit. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
   },
   "consumerChecks": {
     "B1": ["idempotent-read"],

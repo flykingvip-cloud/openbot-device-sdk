@@ -9,6 +9,8 @@ export {
   OPENBOT_CONTRACT_REPO,
   OPENBOT_CONTRACT_SHA,
   PREVIOUS_CONTRACT_SHA,
+  OLDER_CONTRACT_SHA,
+  INVALIDATED_CONTRACT_SHAS,
   assertFrozenBinding,
   assistantEqual,
   loadStandInDocument,
