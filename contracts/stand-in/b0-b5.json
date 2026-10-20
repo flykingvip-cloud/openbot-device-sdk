@@ -1,19 +1,30 @@
 {
   "kind": "openbot-device-api-stand-in",
   "status": "local-stand-in",
+  "routeSource": "local-mock-access-limited",
   "contract": {
-    "sha": "dd6c85cae086d90c519ff1be7ad08e20d4644bba",
+    "sha": "554910d835f3baadb1d753532ad510b1b477be09",
     "repo": "https://github.com/flykingvip-cloud/openbot-vp",
-    "snapshot": "parentless-recovery",
-    "deviceApisPresent": false,
+    "pr": "https://github.com/flykingvip-cloud/openbot-vp/pull/7",
+    "status": "pre-merge-tip",
+    "officialMergeSha": null,
+    "previousSha": "dd6c85cae086d90c519ff1be7ad08e20d4644bba",
     "deviceApiRange": "B0-B5",
+    "deviceApisPresent": "unverified",
+    "routesAligned": false,
+    "access": "unreadable-404",
     "obsolete": {
       "shaPrefix": "68e062e",
       "repo": "https://github.com/upbeyond/openbot",
       "status": "obsolete"
     },
     "liveStubEnv": "OPENBOT_DEVICE_DH_STUB_URL",
-    "note": "openbot-vp at this SHA is a parentless recovery snapshot and does not publish B0-B5 device APIs. Paths below are local stand-ins. Do not call them against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set, and only until Agent B publishes a replacement SHA."
+    "note": "Pre-merge tip of openbot-vp pull 7. Agent B says B0-B5 landed on that tip. This environment received HTTP 404 for the repository, so the paths below stay local mocks and were not copied from the tip. Replace OPENBOT_CONTRACT_SHA with the official main merge SHA when Agent B sends it. Do not call these paths against production. A live stub runs only when OPENBOT_DEVICE_DH_STUB_URL is set."
+  },
+  "consumerChecks": {
+    "B1": ["idempotent-read"],
+    "B2": ["idempotency-key", "SESSION_BUSY", "CURSOR_EXPIRED", "eventId-dedupe"],
+    "B3": ["idempotency-key", "assistant.visible-only-tts"]
   },
   "frozenFields": {
     "topLevel": ["authorizationRef", "bindingVersion", "digitalHumanId", "deviceId"],

@@ -20,6 +20,8 @@
     "adapters/metalio/src/**/*.ts",
     "integrations/**/*.ts",
     "services/src/**/*.ts",
+    "console/src/**/*.ts",
+    "simulator/src/**/*.ts",
     "test/**/*.ts"
   ]
 }

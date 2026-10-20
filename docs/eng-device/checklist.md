@@ -4,11 +4,13 @@
 
 ## 合约
 
-- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `dd6c85cae086d90c519ff1be7ad08e20d4644bba`
+- [ ] `contracts/OPENBOT_CONTRACT_SHA` 为 `554910d835f3baadb1d753532ad510b1b477be09`
+- [ ] 文档写明这是 openbot-vp PR #7 的合并前 tip，正式合并 SHA 还没替换它
+- [ ] 上一枚针 `dd6c85cae086d90c519ff1be7ad08e20d4644bba` 只作为 `previousSha` 保留
 - [ ] 仓库是 `flykingvip-cloud/openbot-vp`，不是 `upbeyond/openbot`
 - [ ] 没有把作废短针 `68e062e` 写回依赖
-- [ ] 文档仍写明：该提交是无父提交的恢复快照，没有 B0–B5
-- [ ] B0–B5 仍走 `contracts/stand-in/b0-b5.json`，没有把 stand-in 路径当成已发布 API
+- [ ] 文档写明本环境读取该仓库得到 404，stand-in 路由没有按 PR tip 改写
+- [ ] B0–B5 仍走 `contracts/stand-in/b0-b5.json`，`routesAligned` 仍是 false
 - [ ] 冻结字段仍是 `authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`、`assistant.*`
 - [ ] 未设置 `OPENBOT_DEVICE_DH_STUB_URL` 时不访问 live stub
 
@@ -37,3 +39,13 @@
 - [ ] 实验 OTA 记录的 `firmwareUrl` 仍是 null，`force` 仍是 0
 - [ ] 拒绝量产、批量、fleet，以及十班和 C5 托管包主机
 - [ ] `npm test` 与 `npm run typecheck` 为绿
+
+## A5 控制台与重连
+
+- [ ] `npm run console` 与 `npm run sim` 能在无工程机时跑完
+- [ ] 状态文件用 sqlite 或 JSON，重启后绑定、吊销和实验 OTA 还在
+- [ ] refresh 不访问网络；吊销清空短时 token
+- [ ] 吊销之后的摄像头结果仍是 `camera_revoked`
+- [ ] B2 stand-in 覆盖幂等、`SESSION_BUSY`、`CURSOR_EXPIRED`、`eventId` 去重
+- [ ] B3 TTS 只包含 `assistant.visible.speech`
+- [ ] `flash()` 与 `massFlash()` 仍然失败，没有活的固件 URL
