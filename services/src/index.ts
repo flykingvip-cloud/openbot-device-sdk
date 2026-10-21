@@ -63,3 +63,10 @@ export {
   openStaging,
 } from "./staging-db.ts";
 export type { StagingDb } from "./staging-db.ts";
+export {
+  SIM_JOINT_PENDING,
+  formatSimJointReport,
+  runSimJointLoopback,
+  simJointMissingEnv,
+} from "./sim-joint.ts";
+export type { SimJointCheck, SimJointOptions, SimJointReport } from "./sim-joint.ts";

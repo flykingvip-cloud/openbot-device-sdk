@@ -2,7 +2,9 @@
 
 前缀：`/api/device-platform/v1`。
 
-这是给 OpenBot 服务客户端用的草稿，供 Agent B 冻结字段。不是灰度，也不是真机交付。默认只监听 loopback。`firmwareUrl` 为 null。没有 `flash` 或 `massFlash` 路由。
+这是 Agent B 和 OpenBot UI 的已冻结联合契约，`info.version` 为 `v1`，健康检查 `maturity` 为 `v1-frozen`。字段名、路径前缀、头名称和错误码不再改。不是灰度，也不是真机交付。默认只监听 loopback。`firmwareUrl` 为 null。没有 `flash` 或 `massFlash` 路由。
+
+联合验收账本见 [integration/joint-acceptance.md](integration/joint-acceptance.md)。本机 sim 顺序见 [integration/sim-joint-loopback.md](integration/sim-joint-loopback.md)。这两份都把 UI、staging、真机和生产标成 `JOINT_PENDING`。
 
 ```bash
 OPENBOT_STUB_SERVICE_USER=... OPENBOT_STUB_SERVICE_PASSWORD=... npm run device-control -- --listen 127.0.0.1:8791
@@ -52,7 +54,7 @@ OpenAPI：`contracts/device-platform/device-control.openapi.yaml`。
 
 健康检查：
 
-- `maturity`：`agent-b-freeze-draft`
+- `maturity`：`v1-frozen`
 - `grayRelease`：false
 - `realDeviceDelivery`：false
 - `flash`：false

@@ -93,3 +93,11 @@ npm run live-stub -- --camera
 样例用户名和口令只在 openbot-vp 的 staging.md，不写入本仓库。默认会话键是 `device-dh:<digitalHumanId>:<conversationId>`。实验语音只把 `assistant.visible` 和 `assistant.final` 拿去播。`npm test` 在凭证未设置时跳过真实 stub，这不是端到端通过。设备平台自己的配对和给 OpenBot UI 的设备控制 API 见 [device-platform.md](device-platform.md)，不写进 OpenBot 契约。
 
 数字人配置要带 `gatewayAgentId`（`OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID`，实验配置里没设置则为 null）。默认代理会话键是 `device-dh:<digitalHumanId>:<conversationId>`。只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 时才改用 UI 会话键。冻结字段名不变。本地 B2 `sessionId` 不是这把键。
+
+## 和设备控制 v1 一起跑
+
+设备控制契约已冻结：`contracts/device-platform/device-control.openapi.yaml` 的 `info.version` 是 `v1`，健康检查 `maturity` 是 `v1-frozen`。这不是灰度，也不是真机交付。
+
+本机 sim 把 OpenBot stub（`:8787`）和 device-control（`:8791`）串起来：配对、PKCE 同意、`grants/exchange`、绑定、rebind、吊销。每一项都是 sim / API-only。管理页面、真语音、摄像头仍是 `JOINT_PENDING`。
+
+步骤见 [integration/sim-joint-loopback.md](integration/sim-joint-loopback.md)。用户锁定的验收场景和证据层见 [integration/joint-acceptance.md](integration/joint-acceptance.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。

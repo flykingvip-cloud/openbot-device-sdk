@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -26,6 +27,7 @@ import {
   DEVICE_CONTROL_ROUTES,
   MemoryStagingDb,
   OtaDisabledError,
+  deviceControlHealth,
   startDeviceControlServer,
   type GrantVerifier,
   type VerifiedGrantBinding,
@@ -130,7 +132,7 @@ test("device-control HTTP pairs, binds a verified grant, syncs, and stops", asyn
       firmwareUrl: null;
       apiPrefix: string;
     };
-    assert.equal(health.maturity, "agent-b-freeze-draft");
+    assert.equal(health.maturity, "v1-frozen");
     assert.equal(health.grayRelease, false);
     assert.equal(health.realDeviceDelivery, false);
     assert.equal(health.flash, false);
@@ -540,7 +542,21 @@ test("pair challenge expiry, grant pair fields, and staging reload stay on the c
   assert.equal(minted(), 0);
 });
 
-test("device-control CLI help states the draft boundary", () => {
+test("device-control OpenAPI info.version and health maturity are frozen v1", () => {
+  const yaml = readFileSync(new URL("../contracts/device-platform/device-control.openapi.yaml", import.meta.url), "utf8");
+  assert.match(yaml, /^  version: v1$/m);
+  assert.match(yaml, /enum: \[v1-frozen\]/);
+  assert.equal(yaml.includes("agent-b-freeze-draft"), false);
+  assert.equal(yaml.includes("v1-draft"), false);
+  assert.match(yaml, /name: X-OpenBot-Grant-Credential/);
+  assert.match(yaml, /\/api\/device-platform\/v1/);
+  assert.match(yaml, /authorizationRef:/);
+  assert.match(yaml, /grayRelease:/);
+  assert.match(yaml, /realDeviceDelivery:/);
+  assert.equal(deviceControlHealth().maturity, "v1-frozen");
+});
+
+test("device-control CLI help states the frozen v1 boundary", () => {
   const help = spawnSync(
     process.execPath,
     ["--disable-warning=ExperimentalWarning", "--experimental-strip-types", "services/src/device-control-cli.ts", "--help"],
@@ -548,6 +564,7 @@ test("device-control CLI help states the draft boundary", () => {
   );
   assert.equal(help.status, 0);
   assert.match(help.stdout, /\/api\/device-platform\/v1/);
+  assert.match(help.stdout, /v1-frozen/);
   assert.match(help.stdout, /不是灰度/);
   const env = { ...process.env };
   delete env[STUB_SERVICE_USER_ENV];

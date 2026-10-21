@@ -1,16 +1,18 @@
 openapi: 3.0.3
 info:
   title: OpenBot device-platform device control
-  version: v1-draft
+  version: v1
   description: >
-    Draft for Agent B to freeze. This is not a gray release and not real-device delivery.
+    Frozen joint contract for Agent B and the OpenBot UI.
+    Field names, path prefixes, header names, and error codes in this document stay as frozen.
+    This is not a gray release and not real-device delivery.
     The path prefix is /api/device-platform/v1. It is not /api/integrations/v1.
     pairChallenge and pairingCode exist only on this API. They must never be sent to OpenBot.
     authorizationRef is copied from an OpenBot grant after exchange. This API does not mint one.
     flash and massFlash are not operations. firmwareUrl stays null.
 servers:
   - url: http://127.0.0.1:8791
-    description: Loopback device-control draft. Not a production host.
+    description: Loopback device-control. Not a production host.
 tags:
   - name: discovery
   - name: pairing
@@ -331,8 +333,8 @@ components:
           enum: [/api/device-platform/v1]
         maturity:
           type: string
-          enum: [agent-b-freeze-draft]
-          description: Freeze candidate for Agent B. Not gray release and not real-device delivery.
+          enum: [v1-frozen]
+          description: Frozen v1 marker for the joint Agent B / OpenBot UI contract. Not gray release and not real-device delivery.
         grayRelease:
           type: boolean
           enum: [false]

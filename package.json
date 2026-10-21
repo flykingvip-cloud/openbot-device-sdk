@@ -14,6 +14,7 @@
     "sim": "node --disable-warning=ExperimentalWarning --experimental-strip-types simulator/src/cli.ts",
     "ota-config": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/ota-config-cli.ts",
     "device-control": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/device-control-cli.ts",
+    "sim-joint": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/sim-joint-cli.ts",
     "voice": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/lab-voice-cli.ts",
     "live-stub": "node --disable-warning=ExperimentalWarning --experimental-strip-types integrations/openbot-live/src/cli.ts"
   },

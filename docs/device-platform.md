@@ -1,6 +1,8 @@
 # 设备平台配对与设备控制 API
 
-这是给 Agent B 冻结字段用的草稿。它不是灰度发布，也不是真机交付。`flash()` 和 `massFlash()` 仍然失败，这里不打开生产 OTA。
+设备控制 HTTP 已冻结为 v1（`maturity: v1-frozen`）。它是 Agent B 和 OpenBot UI 的联合契约，字段名不再改。它不是灰度发布，也不是真机交付。`flash()` 和 `massFlash()` 仍然失败，这里不打开生产 OTA。
+
+验收步骤和证据层见 [integration/joint-acceptance.md](integration/joint-acceptance.md)。8787 与 8791 的 sim 顺序见 [integration/sim-joint-loopback.md](integration/sim-joint-loopback.md)。
 
 OpenBot 的冻结契约仍是 `/api/integrations/v1`。当前针是 `d7f0e1d834dc9ccece6723f6d71dea8fa0cfcb1f`（openbot-vp PR #17）。冻结字段名没有改。OpenAPI 里没有配对挑战字段，也没有客户端注册接口。
 
@@ -24,4 +26,4 @@ OpenBot 的冻结契约仍是 `/api/integrations/v1`。当前针是 `d7f0e1d834d
 
 实验 OTA 配置 HTTP（`npm run ota-config`）是另一进程，给设备和模拟器读公开配置。它不提供这组设备控制路由。
 
-字段、状态码和调用顺序见 [device-control-api.md](device-control-api.md)。OpenAPI 在 `contracts/device-platform/device-control.openapi.yaml`。
+字段、状态码和调用顺序见 [device-control-api.md](device-control-api.md)。OpenAPI 在 `contracts/device-platform/device-control.openapi.yaml`，`info.version` 为 `v1`。
