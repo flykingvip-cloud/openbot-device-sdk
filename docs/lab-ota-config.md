@@ -15,7 +15,7 @@ npm run ota-config -- --help
 
 - `GET /healthz`：本进程健康检查。`firmwareUrl` 为 null。
 - `GET /devices/{deviceId}/config`：公开配置。只有非敏感 URL 和配对提示。
-- `POST /devices/{deviceId}/credentials`：签发 token。必须带已核销的认领码（头 `X-OpenBot-Device-Proof`，或 JSON `claimCode`）。只知道 `deviceId` 不会签发。
+- `POST /devices/{deviceId}/credentials`：签发 token。必须带已核销且未过期的认领码（头 `X-OpenBot-Device-Proof`，或 JSON `claimCode`）。成功后该码一次性消费，不能用同一码再次签发。只知道 `deviceId` 不会签发。
 - `GET /devices/{deviceId}/credentials`：读取当前凭证。必须带 `Authorization: Bearer`，并且 token 未过期、未吊销、设备和 `bindingVersion` 仍匹配。
 - `POST /devices/{deviceId}/credentials/refresh`：轮换 token。必须出示当前 token。过期 token 可以刷新，吊销后不行。不访问网络。
 
@@ -44,6 +44,6 @@ npm run ota-config -- --help
 
 `gatewayAgentId` 和 `agentSessionForce` 只在凭证响应里。前者来自 `OPENBOT_DEVICE_DH_GATEWAY_AGENT_ID`，没设置时是 null。后者只有 `OPENBOT_DEVICE_DH_AGENT_SESSION_FORCE=1` 时为 true。默认会话键是 `device-dh:<digitalHumanId>:<conversationId>`，不是本地 B2 的 `sessionId`。
 
-吊销会清掉 token，公开配置的 `pairing.next` 变成 `revoked`。rebind 会把 `bindingVersion` 加 1；下一次必须重新出示认领码才能拿到新 token。旧 token 不能再读。
+吊销会清掉 token，公开配置的 `pairing.next` 变成 `revoked`。rebind 会把 `bindingVersion` 加 1；下一次必须先重新 `issueClaim` + `redeemClaim` 再出示**新的**认领码才能拿到新 token（旧码已在上次签发时消费）。旧 token 不能再读。
 
 认领和绑定仍然走控制面（控制台或调用 `ControlPlane`），状态写在同一个 staging 文件里。这个 HTTP 服务不会调用 `flash()` 或 `massFlash()`。

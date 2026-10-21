@@ -24,7 +24,7 @@ OpenAPI：`contracts/device-platform/device-control.openapi.yaml`。
 
 1. `GET /api/device-platform/v1/health` 和 `GET /api/device-platform/v1/capabilities`。确认 `openBot.pairFieldsAccepted` 为 false，`grayRelease` 为 false，`realDeviceDelivery` 为 false。
 2. `POST /api/device-platform/v1/pair-challenges`，body 只有 `{ "deviceId": "dev-1" }`。响应 `201`：`pairChallenge`、`pairingCode`（6 位，只此一次）、`expiresAtMs`、`status: pending`。
-3. `POST /api/device-platform/v1/pair-challenges/{pairChallenge}/redeem`，body `{ "deviceId", "pairingCode" }`。响应没有 `pairingCode`。`ownership` 为 `verified`，`servicePrincipal` 是 Basic 用户名。
+3. `POST /api/device-platform/v1/pair-challenges/{pairChallenge}/redeem`，body `{ "deviceId", "pairingCode" }`。响应没有 `pairingCode`。`ownership` 为 `verified`（冻结枚举；含义是 **lab/sim 配对码持有验证 / simulation possession verification**，不是真机硬件归属证明），`servicePrincipal` 是 Basic 用户名。
 4. 到 OpenBot 做同意和兑换。同意 body 使用 PKCE S256 和冻结字段：`serviceAudience`、`redirectUri`、`codeChallenge`、`codeChallengeMethod`、`digitalHumanId`、`deviceId`、`scopes`、`state`。不要附带 `pairChallenge` 或 `pairingCode`。兑换 `POST /api/integrations/v1/grants/exchange` 返回 `authorizationRef` 和一次性 `authorizationCredential`。
 5. `POST /api/device-platform/v1/devices/{deviceId}/bind`。头 `X-OpenBot-Grant-Credential`。body 必填 `authorizationRef`，必须等于兑换结果。可选回声 `bindingVersion`、`digitalHumanId`、`deviceId`，不一致则 `409`。服务端再读 grant，存下 grant 里的 `authorizationRef`、`bindingVersion`、`digitalHumanId`、`deviceId`、`assistant`。`source` 为 `openbot-grant`。
 6. `GET /api/device-platform/v1/devices` 或 `GET /api/device-platform/v1/devices/{deviceId}/bind` 看状态。列表里没有 `pairingCode`。
@@ -45,7 +45,7 @@ OpenAPI：`contracts/device-platform/device-control.openapi.yaml`。
 
 - `deviceId`
 - `servicePrincipal`
-- `ownership`：`pending` 或 `verified`
+- `ownership`：`pending` 或 `verified`（`verified` = simulation possession verification via pairing code；不是硬件 claim）
 - `bindStatus`：`unbound`、`bound` 或 `revoked`
 - `revoked`
 - `pairChallenge`：仅在挑战仍 pending 时出现，不含配对码
