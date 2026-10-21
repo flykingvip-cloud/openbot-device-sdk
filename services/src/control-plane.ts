@@ -14,7 +14,7 @@ import {
 import { C5_HOSTED_BIN_HOST, XIAOZHI_OTA_HOST } from "../../adapters/metalio/src/constants.ts";
 import { invalidateDigitalHumanCache } from "../../integrations/openbot-b1/src/index.ts";
 import { ControlPlaneError, OtaDisabledError } from "./errors.ts";
-import { STAGING_CONTROL_SECTION, type StagingDb } from "./staging-db.ts";
+import { STAGING_CONTROL_SECTION, StagingConflictError, type StagingDb } from "./staging-db.ts";
 
 const CLAIM_TTL_MS = 10 * 60 * 1000;
 
@@ -108,7 +108,7 @@ export interface ControlPlaneOptions {
   authorizationRef?: () => string;
   token?: () => string;
   credentialTtlMs?: number;
-  /** When set, claim/bind/OTA/credential/revoke state survives a new `ControlPlane` on the same db. */
+  /** When set, durable store is authoritative across ControlPlane instances on the same db. */
   store?: StagingDb;
   /** Opaque pair-challenge id. The default is `pch_` plus a UUID. */
   pairChallengeId?: () => string;
@@ -226,7 +226,11 @@ function defaultCode(): string {
 /**
  * Claim, bind, and lab OTA record.
  * Without `store`, state stays in memory for unit tests.
- * With a file or sqlite `StagingDb`, the next process reloads it.
+ * With a file or sqlite `StagingDb`, the durable section is authoritative: security-sensitive
+ * reads (credential assess / revoke checks) reload it, and mutating writes use optimistic
+ * concurrency so a second ControlPlane on the same db cannot silently clobber the first.
+ * Sharing one in-process ControlPlane instance remains a valid lab deploy option; it is not
+ * a substitute for that cross-process correctness.
  * `flash` and `massFlash` always throw. No firmware URL is stored.
  * `refreshConnectionCredential` is a local stub and does not call a network.
  * `applyVerifiedGrant` stores an OpenBot grant as-is and does not mint `authorizationRef`.
@@ -247,6 +251,8 @@ export class ControlPlane {
   private readonly pairChallengeId: () => string;
   private readonly credentialTtlMs: number;
   private readonly store: StagingDb | undefined;
+  /** Last observed durable control-section revision when `store` is set. */
+  private storeRevision = 0;
   private readonly sessionLifecycles: Array<WeakRef<SessionLifecycleListener>> = [];
 
   constructor(options: ControlPlaneOptions = {}) {
@@ -269,6 +275,7 @@ export class ControlPlane {
   }
 
   issueClaim(deviceId: string): ClaimTicket {
+    this.refreshFromAuthoritativeStore();
     if (deviceId.length === 0) {
       throw new ControlPlaneError("claim_device", "deviceId is required");
     }
@@ -287,6 +294,7 @@ export class ControlPlane {
   }
 
   redeemClaim(deviceId: string, code: string): { deviceId: string } {
+    this.refreshFromAuthoritativeStore();
     const claim = this.claims.get(deviceId);
     if (!claim || claim.status !== "pending") {
       throw new ControlPlaneError("claim_missing", "no pending claim for deviceId");
@@ -303,6 +311,7 @@ export class ControlPlane {
   }
 
   bind(input: BindInput): FrozenBinding {
+    this.refreshFromAuthoritativeStore();
     assertNoFrozenAliases(input);
     const claim = this.claims.get(input.deviceId);
     if (!claim || claim.status !== "claimed") {
@@ -343,6 +352,7 @@ export class ControlPlane {
    * Short-lived tokens are dropped, the reply cache is cleared, and open sessions are closed.
    */
   rebind(deviceId: string, input: RebindInput = {}): FrozenBinding {
+    this.refreshFromAuthoritativeStore();
     assertNoFrozenAliases(input);
     if (input.deviceId !== undefined) {
       throw new FrozenFieldError("deviceId");
@@ -398,6 +408,7 @@ export class ControlPlane {
   }
 
   proposeLabOta(input: LabOtaInput): LabOtaIntent {
+    this.refreshFromAuthoritativeStore();
     if (!this.bindings.has(input.deviceId)) {
       throw new ControlPlaneError("ota_unbound", "OTA records require a bound device");
     }
@@ -419,6 +430,7 @@ export class ControlPlane {
    * `issueConnectionCredentialWithProof` so a device id alone cannot mint a token.
    */
   issueConnectionCredential(deviceId: string): ConnectionCredential {
+    this.refreshFromAuthoritativeStore();
     if (this.revoked.has(deviceId)) {
       throw new ControlPlaneError("credential_revoked", "revoked devices cannot issue connection credentials");
     }
@@ -435,6 +447,7 @@ export class ControlPlane {
    * A device id without that code does not mint a token.
    */
   issueConnectionCredentialWithProof(deviceId: string, claimCode: string): ConnectionCredential {
+    this.refreshFromAuthoritativeStore();
     if (this.revoked.has(deviceId)) {
       throw new ControlPlaneError("credential_revoked", "revoked devices cannot issue connection credentials");
     }
@@ -447,9 +460,12 @@ export class ControlPlane {
 
   /**
    * Full check for using a connection credential: revoke, device, binding, and expiry.
+   * When a durable store is configured, this reloads authoritative state first so a
+   * peer instance's revoke or rebind is observed.
    * Refresh does not call this. An expired token may still be refreshed.
    */
   assessConnectionCredential(deviceId: string, token: string | undefined): ConnectionCredentialAssessment {
+    this.refreshFromAuthoritativeStore();
     if (this.revoked.has(deviceId)) {
       return { ok: false, code: "credential_revoked" };
     }
@@ -481,6 +497,7 @@ export class ControlPlane {
    * This method does not call `fetch` or any OTA host.
    */
   refreshConnectionCredential(deviceId: string, token: string): ConnectionCredential {
+    this.refreshFromAuthoritativeStore();
     if (this.revoked.has(deviceId)) {
       throw new ControlPlaneError("credential_revoked", "revoked devices cannot refresh connection credentials");
     }
@@ -502,11 +519,13 @@ export class ControlPlane {
   }
 
   getConnectionCredential(token: string): ConnectionCredential | undefined {
+    this.refreshFromAuthoritativeStore();
     const found = this.credentials.get(token);
     return found === undefined ? undefined : { ...found };
   }
 
   activeConnectionCredential(deviceId: string): ConnectionCredential | undefined {
+    this.refreshFromAuthoritativeStore();
     for (const credential of this.credentials.values()) {
       if (credential.deviceId === deviceId) {
         return { ...credential };
@@ -516,6 +535,7 @@ export class ControlPlane {
   }
 
   activeCredentialCount(deviceId: string): number {
+    this.refreshFromAuthoritativeStore();
     let count = 0;
     for (const credential of this.credentials.values()) {
       if (credential.deviceId === deviceId) {
@@ -526,6 +546,7 @@ export class ControlPlane {
   }
 
   isRevoked(deviceId: string): boolean {
+    this.refreshFromAuthoritativeStore();
     return this.revoked.has(deviceId);
   }
 
@@ -534,6 +555,7 @@ export class ControlPlane {
    * The frozen binding, including `assistant.*`, stays in place.
    */
   revoke(deviceId: string): { deviceId: string; clearedTokens: number } {
+    this.refreshFromAuthoritativeStore();
     if (!this.bindings.has(deviceId)) {
       throw new ControlPlaneError("bind_missing", "device is not bound");
     }
@@ -550,6 +572,7 @@ export class ControlPlane {
    * after revoke is still rejected. No image bytes and no URL are stored.
    */
   submitCameraResult(input: CameraResultInput): CameraResultReceipt {
+    this.refreshFromAuthoritativeStore();
     if (input.deviceId.length === 0) {
       throw new ControlPlaneError("camera_device", "deviceId is required");
     }
@@ -584,6 +607,7 @@ export class ControlPlane {
    * The 6-digit `pairingCode` is the claim code. It is not an OpenBot field.
    */
   createPairChallenge(deviceId: string, servicePrincipal: string): PairChallengeTicket {
+    this.refreshFromAuthoritativeStore();
     assertDeviceId(deviceId);
     assertServicePrincipal(servicePrincipal);
     const owner = this.principals.get(deviceId);
@@ -626,6 +650,7 @@ export class ControlPlane {
     pairingCode: string;
     servicePrincipal: string;
   }): PairOwnership {
+    this.refreshFromAuthoritativeStore();
     assertDeviceId(input.deviceId);
     assertServicePrincipal(input.servicePrincipal);
     const challenge = this.pairChallenges.get(input.pairChallenge);
@@ -702,6 +727,7 @@ export class ControlPlane {
    * Does not call the local `authorizationRef` generator.
    */
   applyVerifiedGrant(servicePrincipal: string, grant: VerifiedGrantBinding): DeviceControlRecord {
+    this.refreshFromAuthoritativeStore();
     this.assertOwned(servicePrincipal, grant.deviceId);
     if (this.claimStatus(grant.deviceId) !== "claimed") {
       throw new ControlPlaneError("pair_unredeemed", "device ownership has not been verified");
@@ -714,6 +740,7 @@ export class ControlPlane {
    * A higher `bindingVersion` is a rebind. The `authorizationRef` stays the grant's value.
    */
   syncVerifiedGrant(servicePrincipal: string, grant: VerifiedGrantBinding): DeviceControlRecord {
+    this.refreshFromAuthoritativeStore();
     this.assertOwned(servicePrincipal, grant.deviceId);
     if (!this.bindings.has(grant.deviceId)) {
       throw new ControlPlaneError("bind_missing", "device is not bound");
@@ -723,6 +750,7 @@ export class ControlPlane {
 
   /** Local stop. Does not call OpenBot revoke. Repeat calls stay revoked. */
   revokeForPrincipal(servicePrincipal: string, deviceId: string): DeviceControlRecord & { clearedTokens: number } {
+    this.refreshFromAuthoritativeStore();
     this.assertOwned(servicePrincipal, deviceId);
     if (!this.bindings.has(deviceId)) {
       throw new ControlPlaneError("bind_missing", "device is not bound");
@@ -906,9 +934,32 @@ export class ControlPlane {
     return { ...withBinding, source: "openbot-grant" };
   }
 
+  /**
+   * Reload Maps from the durable store. Security-sensitive paths call this so a
+   * peer ControlPlane's revoke/rebind is visible without sharing one process instance.
+   */
+  private refreshFromAuthoritativeStore(): void {
+    if (!this.store) {
+      return;
+    }
+    this.hydrate();
+  }
+
   private hydrate(): void {
-    const raw = this.store?.get(STAGING_CONTROL_SECTION);
+    if (!this.store) {
+      return;
+    }
+    this.storeRevision = this.store.revision(STAGING_CONTROL_SECTION);
+    const raw = this.store.get(STAGING_CONTROL_SECTION);
     if (raw === undefined) {
+      this.claims.clear();
+      this.bindings.clear();
+      this.ota.clear();
+      this.credentials.clear();
+      this.revoked.clear();
+      this.pairChallenges.clear();
+      this.principals.clear();
+      this.grantBound.clear();
       return;
     }
     const section = parseControlSection(raw);
@@ -964,7 +1015,19 @@ export class ControlPlane {
       })),
       grantBound: [...this.grantBound],
     };
-    this.store.set(STAGING_CONTROL_SECTION, section);
+    try {
+      this.store.set(STAGING_CONTROL_SECTION, section, this.storeRevision);
+    } catch (error) {
+      if (error instanceof StagingConflictError) {
+        this.refreshFromAuthoritativeStore();
+        throw new ControlPlaneError(
+          "state_conflict",
+          "control-plane store was updated concurrently; retry the mutation",
+        );
+      }
+      throw error;
+    }
+    this.storeRevision = this.store.revision(STAGING_CONTROL_SECTION);
   }
 }
 

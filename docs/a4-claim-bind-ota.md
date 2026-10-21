@@ -1,6 +1,6 @@
 # A4 认领、绑定与 OTA 控制面
 
-`services` 里的 `ControlPlane` 是实验控制面。不传 `store` 时状态在内存里。传入文件或 sqlite 的 `StagingDb` 后，认领、绑定、实验 OTA、短时凭证和吊销可以在新进程里读回。控制面本身不下载固件，不写设备分区。另有一个实验配置 HTTP，见 [lab-ota-config.md](lab-ota-config.md)。控制台用法见 [a5-console-sim.md](a5-console-sim.md)。
+`services` 里的 `ControlPlane` 是实验控制面。不传 `store` 时状态在内存里。传入文件或 sqlite 的 `StagingDb` 后，认领、绑定、实验 OTA、短时凭证和吊销以 durable store 为准：凭证评估 / 吊销检查会每次从 store 读回有效状态，吊销、rebind、签发、认领等写入带乐观并发版本，避免两个 `ControlPlane` 实例共用同一 sqlite 时静默互相覆盖。实验室仍可选择单进程共享同一个 `ControlPlane` 实例部署，那只是部署便利，不能代替上述跨进程正确性。控制面本身不下载固件，不写设备分区。另有一个实验配置 HTTP，见 [lab-ota-config.md](lab-ota-config.md)。控制台用法见 [a5-console-sim.md](a5-console-sim.md)。
 
 ## 认领
 

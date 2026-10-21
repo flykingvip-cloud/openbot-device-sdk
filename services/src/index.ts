@@ -59,6 +59,7 @@ export {
   MemoryStagingDb,
   STAGING_CONTROL_SECTION,
   STAGING_SESSION_SECTION,
+  StagingConflictError,
   SqliteStagingDb,
   openStaging,
 } from "./staging-db.ts";
