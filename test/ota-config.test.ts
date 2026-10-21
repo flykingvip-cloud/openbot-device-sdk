@@ -188,7 +188,14 @@ test("revoke and rebind do not put the auth profile on public config", () => {
   assert.equal(next.pairing.next, "present-claim-code");
   assertPublic(next);
   assert.equal(next.firmwareUrl, null);
-  const rotated = issueLabDeviceCredential(control, "dev-ota", code, { env: {} });
+  // Prior claim code was one-shot consumed on first issue; must mint a fresh proof.
+  assert.throws(
+    () => issueLabDeviceCredential(control, "dev-ota", code, { env: {} }),
+    (error: unknown) => error instanceof ControlPlaneError && error.code === "device_proof",
+  );
+  const freshCode = control.issueClaim("dev-ota").code;
+  control.redeemClaim("dev-ota", freshCode);
+  const rotated = issueLabDeviceCredential(control, "dev-ota", freshCode, { env: {} });
   assert.equal(rotated.bindingVersion, 2);
   assert.equal(rotated.authorizationRef, "aref_2");
   assert.equal(rotated.token, "ctok_2");
@@ -356,10 +363,19 @@ test("lab config HTTP keeps tokens off the public route and rejects non-loopback
     assert.equal(reboundConfig.pairing.next, "present-claim-code");
     assert.equal(reboundConfig.firmwareUrl, null);
     assertPublic(reboundConfig);
-    const rebound = await fetch(`${server.url}/devices/dev-ota/credentials`, {
+    const reused = await fetch(`${server.url}/devices/dev-ota/credentials`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ claimCode: code }),
+    });
+    assert.equal(reused.status, 401);
+    assert.equal(((await reused.json()) as { error: string }).error, "device_proof");
+    const freshCode = control.issueClaim("dev-ota").code;
+    control.redeemClaim("dev-ota", freshCode);
+    const rebound = await fetch(`${server.url}/devices/dev-ota/credentials`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ claimCode: freshCode }),
     });
     assert.equal(rebound.status, 200);
     const reboundBody = (await rebound.json()) as { token: string; bindingVersion: number; firmwareUrl?: null };

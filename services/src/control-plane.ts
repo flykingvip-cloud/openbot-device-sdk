@@ -38,7 +38,8 @@ export interface ClaimTicket {
 }
 
 interface ClaimRecord extends ClaimTicket {
-  status: "pending" | "claimed";
+  /** `consumed` = claim code used once for HTTP credential issue; device stays claimed. */
+  status: "pending" | "claimed" | "consumed";
 }
 
 export interface LabOtaIntent {
@@ -128,6 +129,10 @@ export interface PairOwnership {
   deviceId: string;
   servicePrincipal: string;
   status: "redeemed";
+  /**
+   * Frozen API enum value. Means lab/sim pairing-code possession verification only —
+   * not hardware attestation or a real-device ownership claim.
+   */
   ownership: "verified";
 }
 
@@ -141,6 +146,10 @@ export type DeviceBindStatusName = "unbound" | "bound" | "revoked";
 export interface DeviceControlRecord {
   deviceId: string;
   servicePrincipal: string;
+  /**
+   * `verified` is simulation / lab pairing-code possession verification, not hardware claim.
+   * Enum value is frozen on the device-control OpenAPI surface.
+   */
   ownership: "pending" | "verified";
   bindStatus: DeviceBindStatusName;
   revoked: boolean;
@@ -393,7 +402,11 @@ export class ControlPlane {
     if (!claim) {
       return "missing";
     }
-    return claim.status;
+    if (claim.status === "pending") {
+      return "pending";
+    }
+    // `consumed` still counts as claimed for bind / grant / public config.
+    return "claimed";
   }
 
   getBinding(deviceId: string): FrozenBinding | undefined {
@@ -445,6 +458,9 @@ export class ControlPlane {
   /**
    * HTTP issue path. The redeemed claim code is the lab device proof.
    * A device id without that code does not mint a token.
+   * On success the claim code is one-shot consumed (`status: consumed`) in the same
+   * durable persist as the new credential, so the same code cannot re-issue.
+   * Expired claim/proof codes are rejected even after redeem.
    */
   issueConnectionCredentialWithProof(deviceId: string, claimCode: string): ConnectionCredential {
     this.refreshFromAuthoritativeStore();
@@ -455,7 +471,17 @@ export class ControlPlane {
     if (!claim || claim.status !== "claimed" || claim.code !== claimCode) {
       throw new ControlPlaneError("device_proof", "device identity was not verified");
     }
-    return this.issueConnectionCredential(deviceId);
+    if (this.now() >= claim.expiresAtMs) {
+      throw new ControlPlaneError("claim_expired", "claim code expired");
+    }
+    const binding = this.requireBinding(deviceId);
+    // Consume in the same CAS write as the minted credential (multi-instance safe).
+    claim.status = "consumed";
+    this.dropCredentials(deviceId);
+    const credential = this.mintCredential(binding);
+    this.credentials.set(credential.token, credential);
+    this.persist();
+    return { ...credential };
   }
 
   /**
@@ -643,7 +669,10 @@ export class ControlPlane {
     };
   }
 
-  /** Verifies ownership. A repeat by the same principal with the same code stays redeemed. */
+  /**
+   * Lab/sim pairing-code possession verification (API field `ownership: verified`).
+   * Not hardware attestation. A repeat by the same principal with the same code stays redeemed.
+   */
   redeemPairChallenge(input: {
     pairChallenge: string;
     deviceId: string;
@@ -1105,7 +1134,7 @@ function parseClaims(value: unknown): ClaimRecord[] {
     if (typeof expiresAtMs !== "number" || !Number.isFinite(expiresAtMs)) {
       throw new ControlPlaneError("state_corrupt", "claim expiry is invalid");
     }
-    if (status !== "pending" && status !== "claimed") {
+    if (status !== "pending" && status !== "claimed" && status !== "consumed") {
       throw new ControlPlaneError("state_corrupt", "claim status is invalid");
     }
     seen.add(deviceId);

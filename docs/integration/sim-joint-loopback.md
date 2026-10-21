@@ -74,7 +74,7 @@ npm run sim-joint -- --digital-human-b ...
 
 1. sim / API-only。`GET $BASE_D/health` 与 `GET $BASE_D/capabilities`。`maturity` 为 `v1-frozen`。`grayRelease`、`realDeviceDelivery`、`flash`、`massFlash` 为 false，`firmwareUrl` 为 null。`openBot.pairFieldsAccepted` 为 false。
 2. sim / API-only。`POST $BASE_D/pair-challenges`，body 只有 `{ "deviceId" }`。留下 `pairChallenge` 和一次性 `pairingCode`。
-3. sim / API-only。`POST $BASE_D/pair-challenges/{pairChallenge}/redeem`，body 只有 `{ "deviceId", "pairingCode" }`。`ownership` 为 `verified`。响应里不再出现 `pairingCode`。
+3. sim / API-only。`POST $BASE_D/pair-challenges/{pairChallenge}/redeem`，body 只有 `{ "deviceId", "pairingCode" }`。`ownership` 为 `verified`（sim 配对码持有验证 / simulation possession verification，非真机硬件归属）。响应里不再出现 `pairingCode`。
 4. sim / API-only。`POST $BASE_O/consent/authorization-codes`，只有 consent Basic。body 只有 `serviceAudience`、`redirectUri`、`codeChallenge`、`codeChallengeMethod`（`S256`）、`digitalHumanId`、`deviceId`、`scopes`、`state`。不送 `pairChallenge` 或 `pairingCode`。
 5. sim / API-only。`POST $BASE_O/grants/exchange`，service Basic 和 `Idempotency-Key`。body 只有 `authorizationCode`、`codeVerifier`、`redirectUri`。同一 stub 必须立刻能 `GET $BASE_O/grants/{authorizationRef}`。读不到就停，不要另造一个 `authorizationRef`。
 6. sim / API-only。`POST $BASE_D/devices/{deviceId}/bind`。头 `X-OpenBot-Grant-Credential` 用 exchange 返回的 `authorizationCredential`。body 只有 `{ "authorizationRef" }`。
