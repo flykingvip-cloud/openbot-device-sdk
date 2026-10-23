@@ -32,6 +32,8 @@
 | **录音存储 Opus** | 录音卡等高码率落盘（常 256 kbps / Ogg 等） | 另一 adapter，**不**进 metalio 常量 | 预留 `adapters/record-card` 等 |
 
 改 hello 采样率须书面一次；不搞 16k/24k 双标准验收口径。
+类型化槽位见 [a5-device-capability-matrix.md](a5-device-capability-matrix.md)：`broadcast-frame` → `adapters/metalio`；`recording-storage` → `adapters/record-card`（A5 仅占位）。**不要**把录音存储码率 / Ogg 常量写进 metalio hello。
+
 
 ## Opus 占位边界（mock）
 

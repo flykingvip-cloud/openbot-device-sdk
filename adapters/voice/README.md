@@ -22,3 +22,5 @@ TTS 下行采样率以 metalio **server hello** 为准（默认 24 kHz / mono / 
 
 - `isWavBuffer` / `parseWavPcm` / `buildWavPcm` — RIFF/WAVE PCM 读写。
 - `resolveAsrAudio` — 整段入口规范化（WAV 头覆盖 sampleRate/channels）。
+
+设备能力矩阵（mic/storage/ble/usb/speaker 可选）与 metalio / record-card 槽位见 [docs/a5-device-capability-matrix.md](../../docs/a5-device-capability-matrix.md)。

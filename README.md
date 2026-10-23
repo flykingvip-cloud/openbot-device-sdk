@@ -34,15 +34,16 @@ PR #17 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。�
 | 路径 | 内容 |
 |---|---|
 | `contracts/` | SHA 针、冻结字段、消费者路径镜像、未拉取的 OpenAPI 槽、B0–B5 本地 stand-in |
-| `sdk/` | 对外入口、媒体能力、设备工具 |
+| `sdk/` | 对外入口、媒体能力、设备能力矩阵、设备工具 |
 | `adapters/metalio/` | 语音线、Opus 播报帧/占位、打断策略（mock 残留 2400 ms / 真 TTS 清队列） |
+| `adapters/record-card/` | A5 占位：录音存储 Opus 家族槽（未实现） |
 | `integrations/openbot-b1` | 数字人资料消费者 |
 | `integrations/openbot-b2` | 会话消费者 |
 | `integrations/openbot-b3` | 设备工具消费者 |
 | `services/` | 认领、绑定、实验 OTA 记录、实验配置 HTTP、设备控制 HTTP；可选的文件 / sqlite 状态 |
 | `console/` | 认领、绑定、OTA、refresh、吊销的实验控制台 |
 | `simulator/` | 无真机的 B1–B3 stand-in 与重连模拟 |
-| `docs/` | A0 笔记、A2、A4、A5、B1–B3、设备控制 v1、联合验收、工程清单 |
+| `docs/` | A0 笔记、A2、A4、控制台 A5、**能力矩阵 A5**、B1–B3、设备控制 v1、联合验收、工程清单 |
 
 ## 语音与媒体
 

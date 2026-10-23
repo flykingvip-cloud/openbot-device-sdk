@@ -20,3 +20,5 @@
 - `POST /api/v1/upload` 属 OpenBot gateway，不在本包。
 
 详见 [docs/a2-metalio-voice.md](../../docs/a2-metalio-voice.md) 与 [docs/lab-voice.md](../../docs/lab-voice.md)。
+
+能力矩阵与 adapter 槽位见 [docs/a5-device-capability-matrix.md](../../docs/a5-device-capability-matrix.md)。录音存储 Opus 属 `adapters/record-card` 占位，不进本 adapter。
