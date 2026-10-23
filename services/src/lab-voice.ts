@@ -10,6 +10,7 @@ import {
   UPLINK_SAMPLE_RATE,
   OPUS_FRAME_DURATION_MS,
   DECODE_QUEUE_BUDGET_MS,
+  type AbortDecodePolicy,
 } from "../../adapters/metalio/src/index.ts";
 import {
   MockAsrProvider,
@@ -34,17 +35,43 @@ import { WsFrameDecoder, encodeServerFrame, takeSocket, websocketAccept } from "
 export interface LabAbortReport {
   residualMs: number;
   clearedUnsent: number;
-  queueCleared: false;
+  /** True when abortDecodePolicy is clear-on-abort (real TtsProvider path). */
+  queueCleared: boolean;
+  abortDecodePolicy: AbortDecodePolicy;
+}
+
+/**
+ * Resolve abort decode policy for lab voice.
+ * Real (non-mock) TtsProvider → clear-on-abort (product deviation).
+ * Mock / placeholder → metalio-faithful residual ≤2400 ms.
+ */
+export function resolveAbortDecodePolicy(
+  ttsProvider: TtsProvider,
+  override?: AbortDecodePolicy,
+): AbortDecodePolicy {
+  if (override !== undefined) {
+    return override;
+  }
+  return ttsProvider instanceof MockTtsProvider ? "metalio-faithful" : "clear-on-abort";
 }
 
 /**
  * Server play queue for the lab voice stub.
- * Frames already handed to the device stay in the 2400 ms residual model.
- * Abort stops further sends and does not call ResetDecoder.
+ *
+ * metalio-faithful (default / mock): frames already handed to the device stay in
+ * the 2400 ms residual model; abort does not ResetDecoder.
+ * clear-on-abort (real TtsProvider): AbortSpeaking clears the decode queue
+ * (lab model of ResetDecoder); queueCleared=true, residualMs=0.
  */
 export class LabPlayQueue {
-  private readonly residual = new MetalioAbortResidual();
+  private readonly residual: MetalioAbortResidual;
   private unsent = 0;
+  readonly abortDecodePolicy: AbortDecodePolicy;
+
+  constructor(abortDecodePolicy: AbortDecodePolicy = "metalio-faithful") {
+    this.abortDecodePolicy = abortDecodePolicy;
+    this.residual = new MetalioAbortResidual({ abortDecodePolicy });
+  }
 
   start(): void {
     this.unsent = 0;
@@ -60,7 +87,13 @@ export class LabPlayQueue {
     this.residual.abortSpeaking(sessionId);
     const clearedUnsent = this.unsent;
     this.unsent = 0;
-    return { residualMs: this.residual.residualMs(), clearedUnsent, queueCleared: false };
+    const queueCleared = this.abortDecodePolicy === "clear-on-abort";
+    return {
+      residualMs: this.residual.residualMs(),
+      clearedUnsent,
+      queueCleared,
+      abortDecodePolicy: this.abortDecodePolicy,
+    };
   }
 
   residualMs(): number {
@@ -77,6 +110,11 @@ export interface LabVoiceServerOptions {
   asrProvider?: AsrProvider;
   /** Injected TTS; default MockTtsProvider yields OB-OPUS-PLACEHOLDER frames. */
   ttsProvider?: TtsProvider;
+  /**
+   * Abort decode policy. Default: metalio-faithful for MockTtsProvider,
+   * clear-on-abort for any other (real) TtsProvider.
+   */
+  abortDecodePolicy?: AbortDecodePolicy;
 }
 
 export interface LabVoiceServer {
@@ -95,6 +133,7 @@ export function startLabVoiceServer(
   const fetchImpl = options.fetchImpl ?? fetch;
   const asrProvider = options.asrProvider ?? new MockAsrProvider();
   const ttsProvider = options.ttsProvider ?? new MockTtsProvider();
+  const abortDecodePolicy = resolveAbortDecodePolicy(ttsProvider, options.abortDecodePolicy);
   const book = new SessionBook({ plane });
   const sockets = new Set<Duplex>();
   const server = createServer();
@@ -104,7 +143,7 @@ export function startLabVoiceServer(
     socket.on("close", () => {
       sockets.delete(socket);
     });
-    acceptVoiceUpgrade(plane, book, req, socket, env, fetchImpl, asrProvider, ttsProvider);
+    acceptVoiceUpgrade(plane, book, req, socket, env, fetchImpl, asrProvider, ttsProvider, abortDecodePolicy);
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -134,6 +173,7 @@ function acceptVoiceUpgrade(
   fetchImpl: typeof fetch,
   asrProvider: AsrProvider,
   ttsProvider: TtsProvider,
+  abortDecodePolicy: AbortDecodePolicy,
 ): void {
   const deviceId = headerValue(req, "device-id");
   const clientId = headerValue(req, "client-id");
@@ -160,7 +200,7 @@ function acceptVoiceUpgrade(
       "",
     ].join("\r\n"),
   );
-  attachVoiceSession(plane, book, socket, deviceId, version, token, env, fetchImpl, asrProvider, ttsProvider);
+  attachVoiceSession(plane, book, socket, deviceId, version, token, env, fetchImpl, asrProvider, ttsProvider, abortDecodePolicy);
 }
 
 function attachVoiceSession(
@@ -174,9 +214,10 @@ function attachVoiceSession(
   fetchImpl: typeof fetch,
   asrProvider: AsrProvider,
   ttsProvider: TtsProvider,
+  abortDecodePolicy: AbortDecodePolicy,
 ): void {
   const decoder = new WsFrameDecoder();
-  const play = new LabPlayQueue();
+  const play = new LabPlayQueue(abortDecodePolicy);
   let sessionId = "";
   let greeted = false;
   let listening = false;
@@ -511,6 +552,7 @@ function attachVoiceSession(
       residualCapMs: DECODE_QUEUE_BUDGET_MS,
       frameMs: OPUS_FRAME_DURATION_MS,
       queueCleared: report.queueCleared,
+      abortDecodePolicy: report.abortDecodePolicy,
     });
   }
 }

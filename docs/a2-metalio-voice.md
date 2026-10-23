@@ -46,17 +46,24 @@ Lab 默认 `MockTtsProvider` 仍走 `placeholderEncode` / `OB-OPUS-PLACEHOLDER`�
 - 参考 Provider：`OpusFrameTtsProvider` / `createOpusFrameTtsProvider`（lab 用 tone/silence PCM → 真 Opus，证明下行路径）。
 - 判别：`isOpusPlaceholderPayload` / `looksLikeRawOpusPacket`。
 
-## 打断残留 2400 ms
+## 打断语义（A4）
 
-`AbortSpeaking` 只把 `aborted_` 置真并发送：
+`AbortSpeaking` 仍发送：
 
 ```json
 {"session_id":"<id>","type":"abort","reason":"wake_word_detected"}
 ```
 
-它不调用 `ResetDecoder`，状态仍停留在 Speaking。解码队列上限是 `2400 / 60 = 40` 包，所以打断之后最多还能留下 2400 ms。队列满时固件会堵住生产者；这个模型用 `blocked` 表示，不丢已入队的包。
+两条策略（`AbortDecodePolicy`）：
 
-`tts.start` 会清掉 `aborted_`。只有从 Idle 或 Listening 进入 Speaking 时才清空队列。已经在 Speaking 时再次 `tts.start` 不会清队列。
+| 策略 | 适用 | AbortSpeaking 行为 | 验收 |
+|---|---|---|---|
+| `metalio-faithful` | 占位 / `MockTtsProvider` | **不**调用 `ResetDecoder`；状态仍 Speaking；解码队列上限 `2400/60=40` 包，残留 ≤ **2400 ms** | 仅文档化 placeholder；**不是**真 TTS 最终真机门闩 |
+| `clear-on-abort` | 真 `TtsProvider`（产品已批准偏离 Metalio 基线） | 清解码队列（lab 模型 = `ResetDecoder`）；`queueCleared=true`，`residualMs=0`；aborted 期间拒收继续入队 | **真 TTS 路径最终门闩** |
+
+`tts.start` 会清掉 `aborted_`。只有从 Idle 或 Listening 进入 Speaking 时才进入 Speaking 并清空队列。已经在 Speaking 时再次 `tts.start` 不会清队列（metalio-faithful）；clear-on-abort 下打断本身已清空。
+
+固件侧真实 `ResetDecoder` 烧录需与固件仓协同；本仓提供契约说明 + lab 模型。
 
 ## Provider 注入（A1）
 

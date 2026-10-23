@@ -25,9 +25,12 @@ npm run voice -- --help
 
 注入 `createOpusFrameTtsProvider()`（或任意产出裸 Opus 的 `TtsProvider`）后，下行变为 **24 kHz / mono / 60 ms** 播报帧 Opus（`@evan/opus` / libopus WASM 或 native）。录音卡落盘 Opus 属另一 adapter，勿与 hello 常量混用。
 
-## 打断
+## 打断（A4）
 
-收到 `type=abort` 后停止继续发送。已经交给播放模型的帧留在队列里，上限仍是 40 × 60 ms = 2400 ms。打断不调用 `ResetDecoder`，也不会把队列清空。
+收到 `type=abort` 后停止继续发送，并回报 `lab.abort`（含 `queueCleared`、`abortDecodePolicy`、`residualMs`）。
+
+- **默认 mock / placeholder**（`MockTtsProvider` → `metalio-faithful`）：已入队帧留在播放模型里，残留 ≤ 40 × 60 ms = **2400 ms**；不调用 `ResetDecoder`。2400 ms 只文档化占位路径，**不是**真 Provider 最终门闩。
+- **真 TTS Provider**（如 `createOpusFrameTtsProvider()` → `clear-on-abort`）：AbortSpeaking **清解码队列**（lab = `ResetDecoder`），断言 `queueCleared === true` 且 `residualMs === 0`。
 
 ## 和实验配置的关系
 

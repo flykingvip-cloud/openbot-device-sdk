@@ -71,8 +71,8 @@ async function readUntil(client: { nextFrame: () => Promise<WsFrame> }, accept: 
   throw new Error("lab voice frame was not received");
 }
 
-test("play queue keeps the 2400 ms residual and does not clear it on abort", () => {
-  const queue = new LabPlayQueue();
+test("mock play queue keeps the 2400 ms residual and does not clear it on abort", () => {
+  const queue = new LabPlayQueue("metalio-faithful");
   queue.start();
   const frame = Buffer.from(OPUS_PLACEHOLDER_MAGIC);
   for (let index = 0; index < 40; index += 1) {
@@ -81,11 +81,28 @@ test("play queue keeps the 2400 ms residual and does not clear it on abort", () 
   assert.equal(queue.sent(frame), "blocked");
   assert.equal(queue.residualMs(), DECODE_QUEUE_BUDGET_MS);
   const report = queue.abort("sess_lab");
+  assert.equal(report.abortDecodePolicy, "metalio-faithful");
   assert.equal(report.queueCleared, false);
   assert.equal(report.residualMs, 2400);
   assert.equal(mockAsrTranscript({}), "lab-transcript");
   assert.equal(mockAsrTranscript({ binaryNote: "ASR:from-audio" }), "from-audio");
   assert.equal(mockAsrTranscript({ listenText: "typed" }), "typed");
+});
+
+test("real-provider play queue clears decode queue on abort (queueCleared)", () => {
+  const queue = new LabPlayQueue("clear-on-abort");
+  queue.start();
+  const frame = Buffer.from(OPUS_PLACEHOLDER_MAGIC);
+  for (let index = 0; index < 40; index += 1) {
+    assert.equal(queue.sent(frame), "queued");
+  }
+  assert.equal(queue.residualMs(), DECODE_QUEUE_BUDGET_MS);
+  const report = queue.abort("sess_lab");
+  assert.equal(report.abortDecodePolicy, "clear-on-abort");
+  assert.equal(report.queueCleared, true);
+  assert.equal(report.residualMs, 0);
+  assert.equal(queue.residualMs(), 0);
+  assert.equal(queue.sent(frame), "dropped");
 });
 
 test("lab voice accepts Metalio hello, hands a turn to B2, and stops TTS on abort", async () => {
@@ -137,7 +154,9 @@ test("lab voice accepts Metalio hello, hands a turn to B2, and stops TTS on abor
       residualMs: number;
       queueCleared: boolean;
       residualCapMs: number;
+      abortDecodePolicy: string;
     };
+    assert.equal(abortBody.abortDecodePolicy, "metalio-faithful");
     assert.equal(abortBody.queueCleared, false);
     assert.equal(abortBody.residualCapMs, 2400);
     assert.equal(abortBody.residualMs > 0, true);

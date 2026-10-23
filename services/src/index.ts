@@ -32,7 +32,7 @@ export type {
   GrantVerifier,
   ServiceClientCredential,
 } from "./device-control.ts";
-export { LabPlayQueue, mockAsrTranscript, startLabVoiceServer } from "./lab-voice.ts";
+export { LabPlayQueue, mockAsrTranscript, resolveAbortDecodePolicy, startLabVoiceServer } from "./lab-voice.ts";
 export type { LabAbortReport, LabVoiceServer, LabVoiceServerOptions } from "./lab-voice.ts";
 export {
   MOCK_ASR_DEFAULT_TRANSCRIPT,
