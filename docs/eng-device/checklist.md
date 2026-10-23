@@ -63,6 +63,14 @@
 - [ ] B3 TTS 只包含 `assistant.visible.speech`
 - [ ] `flash()` 与 `massFlash()` 仍然失败，没有活的固件 URL
 
+
+## Plan A A5 能力矩阵（与控制台 A5 文档区分）
+
+- [ ] `sdk/src/device-capabilities.ts` 声明 mic/storage/ble/usb/speaker（speaker 可选）与 adapter 槽位 metalio / record-card / generic
+- [ ] 播报帧 Opus vs 录音存储 Opus 在类型 `OpusSemanticRole` 与 [docs/a5-device-capability-matrix.md](../a5-device-capability-matrix.md) 中分开；record-card 仅为占位
+- [ ] BLE/USB 等本地能力**未**写入 `contracts/device-platform/device-control.openapi.yaml`，未改 DC v1 路由
+- [ ] `OPENBOT_CONTRACT_SHA` / `FIRMWARE_SHA` 未改；无 `api.tenclass.net` 生产入口
+
 ## 验收阻断
 
 这些仍未完成。勾上任何一项都不表示 A0–A5 已经灰度。

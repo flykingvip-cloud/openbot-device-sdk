@@ -47,6 +47,35 @@ export {
 export type { EmotionCategory, MediaCapabilities } from "./media.ts";
 
 export {
+  ADAPTER_FAMILY_REGISTRY,
+  ADAPTER_FAMILY_SLOTS,
+  DEVICE_CAPABILITY_KEYS,
+  DEVICE_CAPABILITY_MATRICES,
+  GENERIC_ADAPTER_SLOT,
+  METALIO_ADAPTER_SLOT,
+  METALIO_CAPABILITY_MATRIX,
+  OPUS_SEMANTIC_ROLES,
+  RECORD_CARD_ADAPTER_SLOT,
+  RECORD_CARD_CAPABILITY_MATRIX,
+  assertsNoDeviceControlOpenApiForLocalCaps,
+  getAdapterFamilySlot,
+  getDeviceCapabilityMatrix,
+  isSpeakerOptional,
+  listAdapterFamilySlots,
+  listDeviceCapabilityMatrices,
+} from "./device-capabilities.ts";
+export type {
+  AdapterFamilySlot,
+  AdapterOpenApiSurface,
+  AdapterSlotDeclaration,
+  AdapterSlotStatus,
+  CapabilityPresence,
+  DeviceCapabilityKey,
+  DeviceCapabilityMatrix,
+  OpusSemanticRole,
+} from "./device-capabilities.ts";
+
+export {
   DEVICE_TOOLS,
   DISABLED_DEVICE_COMMANDS,
   DeviceToolError,
