@@ -43,3 +43,25 @@ export {
   parseServerHello,
 } from "./voice-wire.ts";
 export type { AbortReason, BinaryFrame, ClientHello, ListeningMode, ServerHello, WebsocketHeaderInput } from "./voice-wire.ts";
+
+/** Re-export injectable voice providers for metalio consumers. */
+export type {
+  AsrAudioFormat,
+  AsrFinalResult,
+  AsrPartialResult,
+  AsrProvider,
+  AsrStreamChunk,
+  AsrStreamResult,
+  AsrTranscribeOptions,
+  TtsProvider,
+  TtsSynthesizeOptions,
+} from "../../voice/src/index.ts";
+export {
+  MOCK_ASR_DEFAULT_TRANSCRIPT,
+  MOCK_TTS_FRAME_COUNT,
+  MockAsrProvider,
+  MockTtsProvider,
+  createMockAsrProvider,
+  createMockTtsProvider,
+  mockAsrTranscript,
+} from "../../voice/src/index.ts";

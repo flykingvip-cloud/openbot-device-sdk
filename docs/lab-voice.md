@@ -36,3 +36,41 @@ OPENBOT_LAB_VOICE_WSS_URL=ws://127.0.0.1:8791 npm run ota-config
 ```
 
 已绑定设备的配置会改用这个地址。`api.tenclass.net` 以及其他非本机地址会被忽略，配置仍回到占位 URL。
+
+## Provider 注入（A1）
+
+`startLabVoiceServer` 接受可选的 `asrProvider` / `ttsProvider`。未传入时使用 `MockAsrProvider` / `MockTtsProvider`，行为与历史占位一致：
+
+- ASR：`listen` 的 `text`、或以 `ASR:` 开头的二进制说明 → 同一套 mock transcript（默认 `lab-transcript`）。
+- TTS：下行仍是 `OB-OPUS-PLACEHOLDER` 帧（默认 8 包），不是可播 Opus。
+
+注入自定义实现时：
+
+```ts
+import { startLabVoiceServer } from "../services/src/lab-voice.ts";
+import type { AsrProvider, TtsProvider } from "../adapters/voice/src/index.ts";
+
+const asr: AsrProvider = {
+  async transcribe(audio, { sampleRate, channels }) {
+    // e.g. local FunASR SenseVoiceSmall — weights stay outside this package
+    return "...";
+  },
+  // stream() reserved for WS chunk → partial/final (A3)
+};
+
+const tts: TtsProvider = {
+  async *synthesize(text, { sampleRate }) {
+    // e.g. EdgeTTS over LAN → real Opus packets at hello sampleRate (default 24 kHz)
+    yield opusPacket;
+  },
+};
+
+await startLabVoiceServer(plane, { asrProvider: asr, ttsProvider: tts });
+```
+
+**合法外部实现**：本地 FunASR、局域网 EdgeTTS 等。本包不捆绑权重、不硬编码厂商、不连接 `api.tenclass.net`。
+
+**TTS 下行采样率**：以 metalio server hello 为唯一真相（默认 **24 kHz** / mono / 60 ms）。不要另立 16k/24k 双标准。
+
+**Upload 归属**：`POST /api/v1/upload` 与 `POST /api/v1/record/upload` 由 **OpenBot gateway** 适配层提供，不属于本 SDK / device-control 冻结面。本包只提供对接示例与 Provider 抽象。
+

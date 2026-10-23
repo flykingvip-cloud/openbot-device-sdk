@@ -33,7 +33,23 @@ export type {
   ServiceClientCredential,
 } from "./device-control.ts";
 export { LabPlayQueue, mockAsrTranscript, startLabVoiceServer } from "./lab-voice.ts";
-export type { LabAbortReport, LabVoiceServer } from "./lab-voice.ts";
+export type { LabAbortReport, LabVoiceServer, LabVoiceServerOptions } from "./lab-voice.ts";
+export {
+  MOCK_ASR_DEFAULT_TRANSCRIPT,
+  MOCK_TTS_FRAME_COUNT,
+  MockAsrProvider,
+  MockTtsProvider,
+  createMockAsrProvider,
+  createMockTtsProvider,
+} from "../../adapters/voice/src/index.ts";
+export type {
+  AsrProvider,
+  AsrStreamChunk,
+  AsrStreamResult,
+  AsrTranscribeOptions,
+  TtsProvider,
+  TtsSynthesizeOptions,
+} from "../../adapters/voice/src/index.ts";
 export type {
   BindInput,
   CameraResultInput,

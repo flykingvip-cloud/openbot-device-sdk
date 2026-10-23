@@ -70,3 +70,25 @@ export type {
   LabOtaIntent,
   StagingDb,
 } from "../../services/src/index.ts";
+
+export {
+  MOCK_ASR_DEFAULT_TRANSCRIPT,
+  MOCK_TTS_FRAME_COUNT,
+  MockAsrProvider,
+  MockTtsProvider,
+  createMockAsrProvider,
+  createMockTtsProvider,
+  mockAsrTranscript,
+} from "../../adapters/voice/src/index.ts";
+export type {
+  AsrAudioFormat,
+  AsrFinalResult,
+  AsrPartialResult,
+  AsrProvider,
+  AsrStreamChunk,
+  AsrStreamResult,
+  AsrTranscribeOptions,
+  TtsProvider,
+  TtsSynthesizeOptions,
+} from "../../adapters/voice/src/index.ts";
+
