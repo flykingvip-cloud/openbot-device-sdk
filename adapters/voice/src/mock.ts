@@ -61,6 +61,12 @@ export class MockAsrProvider implements AsrProvider {
     let sampleRate = 16_000;
     let channels = 1;
     for await (const chunk of chunks) {
+      const codec = chunk.codec ?? chunk.format ?? "pcm";
+      // TODO(P1): when codec==="opus", decode packet-bounded Opus → PCM (or codec-aware Provider).
+      // Lab must not label Opus uplink as PCM; this stub concatenates bytes only for shape tests.
+      if (codec === "opus") {
+        // Accept shape; do not pretend Opus bytes are PCM samples.
+      }
       if (chunk.sampleRate !== undefined) {
         sampleRate = chunk.sampleRate;
       }

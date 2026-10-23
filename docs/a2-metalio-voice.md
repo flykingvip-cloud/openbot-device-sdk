@@ -88,3 +88,12 @@ TTS 下行采样率跟随 **server hello**（默认 24000 Hz）。`POST /api/v1/
 ## 不做的事
 
 不连接 `api.tenclass.net`，不把小智 OTA 当成设备平台的语音入口。
+
+
+## Audio bridge (P0) + uplink Opus codec
+
+Injectable `createAudioBridge` (`adapters/voice`): `wavBytes → AsrProvider.transcribe`（无默认透传 transcript）；`assistantText → TtsProvider.synthesize → Opus`；`createAbortHandle()` 取消进行中的 ASR/TTS。详见 [docs/audio-bridge.md](audio-bridge.md)。
+
+`OpusFrameTtsProvider` 仍是 lab/格式路径（忽略 text）。桥接侧 spoken TTS 须注入真 `TtsProvider`；测试可用 `ProportionalSilenceTtsProvider`（静音长度 ∝ 文本）。
+
+`AsrStreamChunk` 可选 `codec`/`format`: `pcm`|`wav`|`opus`。Lab **不得**把 Opus 上行标成 PCM；包边界保留。Opus→PCM 解码接线标为 P1 TODO。

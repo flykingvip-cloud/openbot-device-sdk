@@ -1,0 +1,36 @@
+# Audio bridge (Agent A P0)
+
+Injectable contract so claw4 / edge compat (Agent B) can call ASR/TTS without hardcoding vendors.
+
+## API
+
+Module: `adapters/voice` — `createAudioBridge` / `InjectableAudioBridge`.
+
+| Direction | Contract |
+|---|---|
+| Uplink whole utterance | `wavBytes → AsrProvider.transcribe` via `resolveAsrAudio` — **no** default pass-through transcript |
+| Downlink speech | `assistantText → TtsProvider.synthesize → Opus frames` |
+| Cancel | `createAbortHandle()` → `AbortSignal` on in-flight ASR/TTS |
+
+Providers stay injectable. This SDK does not ship FunASR / EdgeTTS weights.
+
+## OpusFrameTtsProvider vs spoken TTS
+
+`OpusFrameTtsProvider` is **format / lab only**: it **ignores text** and emits a fixed number of tone/silence Opus frames to prove the metalio downlink is decodable. Do **not** inject it into the bridge for product spoken TTS.
+
+For tests that need the path wired without a vendor, use `ProportionalSilenceTtsProvider`: silence PCM whose **length is proportional to text** (not a fixed tone pretending to be speech), then the existing `OpusFrameEncoder` path.
+
+## Uplink Opus (`AsrStreamChunk`)
+
+Optional `codec` / `format`: `"pcm" | "wav" | "opus"` (omit = pcm, backward compatible).
+
+- Lab must **not** label Opus uplink as PCM.
+- Packet boundaries must be preserved.
+- Decode-to-PCM or a codec-aware Provider is **P1** (TODO in `MockAsrProvider.stream`). P0 adds types, docs, and a unit test that `stream()` accepts `codec: "opus"` chunk shape.
+
+## Related
+
+- Providers: [docs/a2-metalio-voice.md](a2-metalio-voice.md), [docs/lab-voice.md](lab-voice.md)
+- Device→edge auth: [docs/device-edge-auth.md](device-edge-auth.md)
+- Future voice E2E checklist: [docs/voice-longitudinal-harness.md](voice-longitudinal-harness.md)
+- HTTP compat smoke (not voice E2E): `npm run voice-joint` — [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)

@@ -16,7 +16,7 @@
 | OpenBot stub / gateway 适配层 | 有（B 主责） |
 | 本 SDK device-control | **没有**，也不进 OpenAPI |
 | `npm run sim` | **没有**；控制面证据链保持原样 |
-| `npm run voice-joint` | 只打 stub 上的 compat 路由（可选再探 device-control health） |
+| `npm run voice-joint` | **HTTP compat smoke**（silent WAV + 可选 transcript=）；**不是** voice E2E。只打 stub compat（可选再探 device-control health） |
 
 冻结针不变：`OPENBOT_CONTRACT_SHA`、`contracts/device-platform/device-control.openapi.yaml`。
 
@@ -108,6 +108,8 @@ OPENBOT_STUB_DEVICE_ID=... \
 OPENBOT_VOICE_JOINT_CONTROL_URL=http://127.0.0.1:8791 \
 npm run voice-joint
 ```
+
+纵向真语音清单（已知 WAV、无透传、ASR、助手回复、TTS≠固定音、abort、revoke）见 [docs/voice-longitudinal-harness.md](../voice-longitudinal-harness.md)；层 sim/real/device 仍为 `JOINT_PENDING`。
 
 `voice-joint` 会：
 

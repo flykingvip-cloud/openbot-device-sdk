@@ -88,7 +88,7 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 ```
 
-步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。Claw4 gateway upload 对接（**不在** device-control / **不进** `npm run sim`）见 [docs/integration/claw4-gateway-upload.md](docs/integration/claw4-gateway-upload.md) 与 `npm run voice-joint`。
+步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。Claw4 gateway upload 对接（**不在** device-control / **不进** `npm run sim`）见 [docs/integration/claw4-gateway-upload.md](docs/integration/claw4-gateway-upload.md) 与 `npm run voice-joint`（HTTP compat smoke，不是 voice E2E；纵向清单见 [docs/voice-longitudinal-harness.md](docs/voice-longitudinal-harness.md)）。音频桥见 [docs/audio-bridge.md](docs/audio-bridge.md)。
 
 ## Agent A 验收还差什么
 

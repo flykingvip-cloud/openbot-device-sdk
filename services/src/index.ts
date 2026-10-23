@@ -52,10 +52,21 @@ export type {
   AsrStreamChunk,
   AsrStreamResult,
   AsrTranscribeOptions,
+  AsrUplinkCodec,
   ResolvedAsrAudio,
   TtsProvider,
   TtsSynthesizeOptions,
   WavPcmInfo,
+  AudioBridge,
+  AudioBridgeAbortHandle,
+  AudioBridgeOptions,
+} from "../../adapters/voice/src/index.ts";
+export {
+  InjectableAudioBridge,
+  ProportionalSilenceTtsProvider,
+  createAudioBridge,
+  createProportionalSilenceTtsProvider,
+  buildOpenBotServiceHeaders,
 } from "../../adapters/voice/src/index.ts";
 export type {
   BindInput,
