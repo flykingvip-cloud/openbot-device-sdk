@@ -85,7 +85,7 @@ test("opus placeholder marks a 60 ms boundary and is not a codec packet", () => 
   assert.throws(() => placeholderEncode(16000, new Uint8Array(10)), /boundary/);
 });
 
-test("abort leaves up to 2400 ms in the decode queue", () => {
+test("metalio-faithful abort leaves up to 2400 ms in the decode queue", () => {
   const playback = new MetalioAbortResidual();
   playback.ttsStart();
   assert.equal(playback.state, "speaking");
@@ -111,4 +111,24 @@ test("abort leaves up to 2400 ms in the decode queue", () => {
   assert.equal(playback.depth, 0);
   const idle = new MetalioAbortResidual();
   assert.equal(idle.enqueueDownlink(packet), "dropped");
+});
+
+test("abort clear-on-abort resets decode queue (real TTS product path)", () => {
+  const playback = new MetalioAbortResidual({ abortDecodePolicy: "clear-on-abort" });
+  playback.ttsStart();
+  const packet = Uint8Array.from([9]);
+  for (let i = 0; i < MAX_DECODE_PACKETS_IN_QUEUE; i += 1) {
+    assert.equal(playback.enqueueDownlink(packet), "queued");
+  }
+  assert.equal(playback.residualMs(), ABORT_RESIDUAL_MS);
+  const wire = playback.abortSpeaking("sess_1", "wake_word_detected");
+  assert.equal(wire, '{"session_id":"sess_1","type":"abort","reason":"wake_word_detected"}');
+  assert.equal(playback.aborted, true);
+  assert.equal(playback.depth, 0);
+  assert.equal(playback.residualMs(), 0);
+  assert.equal(playback.enqueueDownlink(packet), "dropped");
+  playback.ttsStart();
+  assert.equal(playback.aborted, false);
+  assert.equal(playback.enqueueDownlink(packet), "queued");
+  assert.equal(playback.depth, 1);
 });

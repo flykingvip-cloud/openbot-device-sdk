@@ -24,7 +24,7 @@ function main(): void {
           `合约针: ${OPENBOT_CONTRACT_SHA}`,
           `让实验配置改用这个地址: ${LAB_VOICE_WSS_ENV}=${listening.url}`,
           "只接受已绑定且未吊销的短时 token。hello 使用 Metalio 的 websocket + opus 占位。",
-          "TTS 字节是 OB-OPUS-PLACEHOLDER。打断后停止继续发送，已入队残留不超过 2400 ms。",
+          "TTS 字节默认是 OB-OPUS-PLACEHOLDER。mock 打断残留 ≤2400 ms；真 TtsProvider 打断清队列（queueCleared）。",
           "ASR/TTS 可注入 Provider（默认 mock 占位）。不是生产 ASR/TTS，也不会连接 api.tenclass.net。",
           "",
         ].join("\n"),

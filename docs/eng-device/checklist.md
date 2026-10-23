@@ -23,8 +23,8 @@
 - [ ] 客户端 hello 仍是 websocket + Opus 16 kHz / 单声道 / 60 ms，`features.mcp=true`
 - [ ] 协议 version 2 / 3 的二进制头长度仍是 16 和 4
 - [ ] 默认 mock 下行仍带 `OB-OPUS-PLACEHOLDER`；真 Opus 仅经注入的 `TtsProvider` / `OpusFrameEncoder`（`@evan/opus`），不连 api.tenclass.net
-- [ ] 打断路径不调用 ResetDecoder
-- [ ] 满队列残留仍是 40 × 60 ms = 2400 ms
+- [ ] 占位 / mock 路径：打断可不调用 ResetDecoder；满队列残留文档化为 ≤ 40 × 60 ms = 2400 ms（**非**真 TTS 最终门闩）
+- [ ] 真 TtsProvider 路径（A4）：AbortSpeaking 清解码队列 / ResetDecoder；lab 断言 `queueCleared`，`residualMs === 0`；不以 2400 ms 作最终 eng 门闩
 - [ ] 没有把 `api.tenclass.net` 配成语音或 OTA 生产入口
 - [ ] AsrProvider / TtsProvider 可注入（A1）；默认仍是 mock。真实 ASR / TTS 权重与厂商在包外。默认 TTS 仍是 `OB-OPUS-PLACEHOLDER`。未设置 stub 时 `finishUtterance` 标明 sim；配了 loopback stub 也只消费 visible/final，不是端到端通过
 - [ ] 未设置 `OPENBOT_LAB_VOICE_WSS_URL` 时，实验配置里的 voice WSS 仍是 `wss://lab.invalid/voice`

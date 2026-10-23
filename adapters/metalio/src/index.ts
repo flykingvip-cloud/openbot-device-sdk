@@ -20,7 +20,7 @@ export {
   XIAOZHI_OTA_HOST,
 } from "./constants.ts";
 export { ABORT_RESIDUAL_MS, MetalioAbortResidual } from "./abort-residual.ts";
-export type { EnqueueResult, MetalioDialogState } from "./abort-residual.ts";
+export type { AbortDecodePolicy, EnqueueResult, MetalioAbortResidualOptions, MetalioDialogState } from "./abort-residual.ts";
 export {
   OPUS_PLACEHOLDER_MAGIC,
   OpusBoundaryError,

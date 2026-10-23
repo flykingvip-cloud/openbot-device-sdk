@@ -35,7 +35,7 @@ PR #17 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。�
 |---|---|
 | `contracts/` | SHA 针、冻结字段、消费者路径镜像、未拉取的 OpenAPI 槽、B0–B5 本地 stand-in |
 | `sdk/` | 对外入口、媒体能力、设备工具 |
-| `adapters/metalio/` | 语音线、Opus 占位边界、打断残留 2400 ms |
+| `adapters/metalio/` | 语音线、Opus 播报帧/占位、打断策略（mock 残留 2400 ms / 真 TTS 清队列） |
 | `integrations/openbot-b1` | 数字人资料消费者 |
 | `integrations/openbot-b2` | 会话消费者 |
 | `integrations/openbot-b3` | 设备工具消费者 |
@@ -49,7 +49,7 @@ PR #17 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。�
 - WebSocket hello：Opus、16000 Hz、单声道、60 ms，`features.mcp=true`
 - 二进制 version 1 裸负载，version 2 / 3 为固件里的大端帧头
 - 不链接 libopus。占位包带 `OB-OPUS-PLACEHOLDER`，只标记 60 ms 帧边界
-- 打断不清理解码队列。队列上限 40 包，残留最多 **2400 ms**
+- 打断：mock/占位路径残留最多 **2400 ms**；真 TtsProvider 路径清解码队列（A4 `clear-on-abort`）
 - 数字人表情收敛为 6 类；聊天表情用 `system/chat/{name}.eaf`
 - 量产屏初始化是 720×720 RGB888，不是 RGB565 帧缓冲
 
@@ -92,7 +92,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 
 这一段仍是协议 / 模拟脚手架。A0–A5 没有灰度完成，本仓库也不烧录板子。
 
-- 真实 Opus、ASR、TTS。现在只有 `OB-OPUS-PLACEHOLDER`，没有 libopus，打断残留仍是 2400 ms。本地模拟要 `OPENBOT_DEVICE_DH_TEST_MODE=1`。配了 loopback stub 时只播 `assistant.visible` / `assistant.final`，那仍不是灰度或端到端通过。设备控制 HTTP 已冻结为 v1，前缀 `/api/device-platform/v1`，`maturity` 为 `v1-frozen`。不是灰度，也不是真机交付。配对挑战不属于 OpenBot 契约，见 [docs/device-platform.md](docs/device-platform.md) 和 [docs/device-control-api.md](docs/device-control-api.md)。联合验收仍把 UI、staging、真机和生产标成 `JOINT_PENDING`，见 [docs/integration/joint-acceptance.md](docs/integration/joint-acceptance.md)。
+- 真实 Opus、ASR、TTS。现在只有 `OB-OPUS-PLACEHOLDER`，没有 libopus，mock 打断残留可 ≤2400 ms；真 TTS 路径清队列（A4）。本地模拟要 `OPENBOT_DEVICE_DH_TEST_MODE=1`。配了 loopback stub 时只播 `assistant.visible` / `assistant.final`，那仍不是灰度或端到端通过。设备控制 HTTP 已冻结为 v1，前缀 `/api/device-platform/v1`，`maturity` 为 `v1-frozen`。不是灰度，也不是真机交付。配对挑战不属于 OpenBot 契约，见 [docs/device-platform.md](docs/device-platform.md) 和 [docs/device-control-api.md](docs/device-control-api.md)。联合验收仍把 UI、staging、真机和生产标成 `JOINT_PENDING`，见 [docs/integration/joint-acceptance.md](docs/integration/joint-acceptance.md)。
 - Metalio 固件补丁，以及工程机上的编译证据。基线 SHA 仍是 `ca3aa3fa027ff7dad2adf0c2d03c4f24aa838950`，本环境没有 ESP-IDF 编译。
 - 生产级设备身份。认领码、短时 token 和 stub Basic 都是实验用的，不是量产身份。
 - 真实 OV2710 采集。实验摄像头只用 1×1 PNG/JPEG 夹具。
