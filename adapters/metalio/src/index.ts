@@ -60,8 +60,10 @@ export type {
   AsrStreamChunk,
   AsrStreamResult,
   AsrTranscribeOptions,
+  ResolvedAsrAudio,
   TtsProvider,
   TtsSynthesizeOptions,
+  WavPcmInfo,
 } from "../../voice/src/index.ts";
 export {
   MOCK_ASR_DEFAULT_TRANSCRIPT,
@@ -69,9 +71,14 @@ export {
   MockAsrProvider,
   MockTtsProvider,
   OpusFrameTtsProvider,
+  WavParseError,
+  buildWavPcm,
   createMockAsrProvider,
   createMockTtsProvider,
   createOpusFrameTtsProvider,
+  isWavBuffer,
   mockAsrTranscript,
+  parseWavPcm,
+  resolveAsrAudio,
 } from "../../voice/src/index.ts";
 export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "../../voice/src/index.ts";

@@ -46,7 +46,8 @@ OPENBOT_LAB_VOICE_WSS_URL=ws://127.0.0.1:8791 npm run ota-config
 
 `startLabVoiceServer` 接受可选的 `asrProvider` / `ttsProvider`。未传入时使用 `MockAsrProvider` / `MockTtsProvider`，行为与历史占位一致：
 
-- ASR：`listen` 的 `text`、或以 `ASR:` 开头的二进制说明 → 同一套 mock transcript（默认 `lab-transcript`）。
+- ASR（整段 A3）：`listen` 期间的二进制 WAV/PCM 优先 → `resolveAsrAudio` + `AsrProvider.transcribe`（WAV 采样率来自文件头）。否则 `listen` 的 `text`、或以 `ASR:` 开头的二进制说明 → 同一套 mock transcript（默认 `lab-transcript`）。
+- ASR（流式 A3）：`AsrProvider.stream` 为可用 stub（partial/final）；lab 默认仍走整段 `finishUtterance`。注入 FunASR 等时权重在包外。
 - TTS（默认 mock）：下行仍是 `OB-OPUS-PLACEHOLDER` 帧（默认 8 包），不是可播 Opus。
 - TTS（真 Opus）：传入 `ttsProvider: createOpusFrameTtsProvider()`（或自研 Provider）后，二进制帧为可解码裸 Opus，不再含 `OB-OPUS-PLACEHOLDER`。
 
@@ -61,7 +62,7 @@ const asr: AsrProvider = {
     // e.g. local FunASR SenseVoiceSmall — weights stay outside this package
     return "...";
   },
-  // stream() reserved for WS chunk → partial/final (A3)
+  // stream(chunks) → partial/final (A3 usable stub or real FunASR inject)
 };
 
 const tts: TtsProvider = {
