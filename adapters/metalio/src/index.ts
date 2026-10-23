@@ -30,6 +30,13 @@ export {
 } from "./opus-boundary.ts";
 export type { OpusPlaceholderFrame, OpusSampleRate } from "./opus-boundary.ts";
 export {
+  LibopusFrameEncoder,
+  createLibopusFrameEncoder,
+  isOpusPlaceholderPayload,
+  looksLikeRawOpusPacket,
+} from "./opus-encoder.ts";
+export type { CreateLibopusFrameEncoderOptions, OpusFrameEncoder } from "./opus-encoder.ts";
+export {
   VOICE_WIRE,
   VoiceWireError,
   assertSessionId,
@@ -61,7 +68,10 @@ export {
   MOCK_TTS_FRAME_COUNT,
   MockAsrProvider,
   MockTtsProvider,
+  OpusFrameTtsProvider,
   createMockAsrProvider,
   createMockTtsProvider,
+  createOpusFrameTtsProvider,
   mockAsrTranscript,
 } from "../../voice/src/index.ts";
+export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "../../voice/src/index.ts";

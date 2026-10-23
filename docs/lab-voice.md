@@ -21,7 +21,9 @@ npm run voice -- --help
 
 设置了 stub URL、service Basic 和 `X-OpenBot-Grant-Credential` 之后，`finishUtterance` 把用户文本提交给 OpenBot stub（grant、conversation、带 `Idempotency-Key` 的 turn、run SSE）。助手 TTS 只使用 `assistant.visible` 和 `assistant.final` 里的文本，并标 `dialogue: openbot`。不会把 ASR 文本假装成 OpenBot 的助手话。打断会 `POST /runs/{runId}/cancel`，`reason` 为 `barge_in`。凭证不全或 stub 未配置时，live 测试跳过，那不是端到端通过。B2–B5 的本地 stand-in 仍在。样例客户端口令见 openbot-vp `staging.md`，不写入本仓库。
 
-下行 TTS 是 `OB-OPUS-PLACEHOLDER` 二进制，不是 Opus 包，也不链接 libopus。
+默认下行 TTS 仍是 `OB-OPUS-PLACEHOLDER` 二进制（`MockTtsProvider`），不是可播 Opus。
+
+注入 `createOpusFrameTtsProvider()`（或任意产出裸 Opus 的 `TtsProvider`）后，下行变为 **24 kHz / mono / 60 ms** 播报帧 Opus（`@evan/opus` / libopus WASM 或 native）。录音卡落盘 Opus 属另一 adapter，勿与 hello 常量混用。
 
 ## 打断
 
@@ -42,7 +44,8 @@ OPENBOT_LAB_VOICE_WSS_URL=ws://127.0.0.1:8791 npm run ota-config
 `startLabVoiceServer` 接受可选的 `asrProvider` / `ttsProvider`。未传入时使用 `MockAsrProvider` / `MockTtsProvider`，行为与历史占位一致：
 
 - ASR：`listen` 的 `text`、或以 `ASR:` 开头的二进制说明 → 同一套 mock transcript（默认 `lab-transcript`）。
-- TTS：下行仍是 `OB-OPUS-PLACEHOLDER` 帧（默认 8 包），不是可播 Opus。
+- TTS（默认 mock）：下行仍是 `OB-OPUS-PLACEHOLDER` 帧（默认 8 包），不是可播 Opus。
+- TTS（真 Opus）：传入 `ttsProvider: createOpusFrameTtsProvider()`（或自研 Provider）后，二进制帧为可解码裸 Opus，不再含 `OB-OPUS-PLACEHOLDER`。
 
 注入自定义实现时：
 
