@@ -53,10 +53,11 @@ Plan A 切片 **A5**：为后续录音卡（record-card）落地声明 **设备�
 
 查询辅助：`listDeviceCapabilityMatrices()`、`getDeviceCapabilityMatrix(profileId)`、`listAdapterFamilySlots()`、`isSpeakerOptional(matrix)`。
 
-## 下一步（A6）
+## A6 已交付（本仓文档 / harness）
 
-- Gateway upload 示例文档 + voice harness（仍不把 upload HTTP 塞进本 SDK / DC v1）
-- record-card 真实现另开切片，不在本 PR
+- Gateway upload 对接示例：[docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)、[`examples/claw4-upload-curl.sh`](../examples/claw4-upload-curl.sh)、`npm run voice-joint`
+- **未**把 upload HTTP 塞进本 SDK / DC v1；**未**扩展 `npm run sim`
+- record-card 真实现另开切片
 
 ## 不做的事
 

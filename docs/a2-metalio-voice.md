@@ -83,7 +83,7 @@ Lab 默认 `MockTtsProvider` 仍走 `placeholderEncode` / `OB-OPUS-PLACEHOLDER`�
 - **流式：** WS chunk → `stream()` partial/final。Mock 为可测 stub；FunASR 等外部注入，**不捆绑**权重。
 - **不做：** 不连 `api.tenclass.net`；不把 `POST /api/v1/upload` / `record/upload` 放进本 SDK（属 gateway / 方案 B）；不改冻结 device-control v1。
 
-TTS 下行采样率跟随 **server hello**（默认 24000 Hz）。`POST /api/v1/upload` 属 OpenBot gateway，不进本包、不进冻结 `/api/device-platform/v1`。
+TTS 下行采样率跟随 **server hello**（默认 24000 Hz）。`POST /api/v1/upload` 属 OpenBot gateway，不进本包、不进冻结 `/api/device-platform/v1`；对接示例见 [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)。
 
 ## 不做的事
 

@@ -71,6 +71,14 @@
 - [ ] BLE/USB 等本地能力**未**写入 `contracts/device-platform/device-control.openapi.yaml`，未改 DC v1 路由
 - [ ] `OPENBOT_CONTRACT_SHA` / `FIRMWARE_SHA` 未改；无 `api.tenclass.net` 生产入口
 
+## Plan A A6 gateway upload 文档 + voice joint harness
+
+- [ ] [docs/integration/claw4-gateway-upload.md](../integration/claw4-gateway-upload.md) 指向 openbot-vp `docs/integrations/device-digital-human/claw4-firmware-http-compat.md`；主路径 stub `:8787`；gateway `:18789` 无 DeviceDhService 时 503
+- [ ] 鉴权写明 Basic + `X-OpenBot-Grant-Credential` + `X-Device-Id`(=grant.deviceId)；`data.text` = ASR/passthrough 非 assistant.final
+- [ ] `examples/claw4-upload-curl.sh` 与 `npm run voice-joint` 存在；凭证缺失时跳过，跳过不是通过
+- [ ] **未**扩展 `npm run sim`；upload **未**写入 device-control OpenAPI；pin / DC OpenAPI 字节未改
+- [ ] 双命令姿势：`device-control` + `voice`（可选）+ `voice-joint` 文档化
+
 ## 验收阻断
 
 这些仍未完成。勾上任何一项都不表示 A0–A5 已经灰度。

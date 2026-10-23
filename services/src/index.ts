@@ -94,3 +94,13 @@ export {
   simJointMissingEnv,
 } from "./sim-joint.ts";
 export type { SimJointCheck, SimJointOptions, SimJointReport } from "./sim-joint.ts";
+export {
+  DEVICE_ID_HEADER,
+  VOICE_JOINT_CONTROL_URL_ENV,
+  VOICE_JOINT_PENDING,
+  VOICE_JOINT_TRANSCRIPT_ENV,
+  formatVoiceJointReport,
+  runVoiceJointLoopback,
+  voiceJointMissingEnv,
+} from "./voice-joint.ts";
+export type { VoiceJointCheck, VoiceJointOptions, VoiceJointReport } from "./voice-joint.ts";
