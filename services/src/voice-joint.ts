@@ -13,7 +13,10 @@ import {
 import { buildWavPcm } from "../../adapters/voice/src/index.ts";
 import { DEVICE_CONTROL_API_PREFIX } from "./device-control.ts";
 
-/** Evidence still missing after upload+messages loopback. Not an end-to-end pass. */
+/** Evidence still missing after upload+messages loopback. Not an end-to-end pass.
+ * `npm run voice-joint` = HTTP compat smoke (silent WAV + optional transcript=).
+ * It is NOT voice E2E — see docs/voice-longitudinal-harness.md.
+ */
 export const VOICE_JOINT_PENDING = ["ui", "staging", "real-device", "production"] as const;
 
 /** Optional device-control origin for dual-command health probe (not required for upload). */
@@ -102,7 +105,9 @@ function authHeaders(env: NodeJS.ProcessEnv): Record<string, string> {
 }
 
 /**
- * Loopback smoke for B1 claw4 firmware HTTP compat on stub :8787.
+ * HTTP compat smoke for B1 claw4 firmware HTTP compat on stub :8787
+ * (`npm run voice-joint`). Silent WAV + optional ?transcript= passthrough —
+ * NOT voice E2E (no real ASR/TTS path). See docs/voice-longitudinal-harness.md.
  * POSTs /api/v1/upload?transcript= then GETs conversation messages.
  * Optionally probes device-control health when OPENBOT_VOICE_JOINT_CONTROL_URL is set.
  * Does not implement gateway routes, does not touch npm run sim, does not mint grants.
@@ -212,7 +217,7 @@ export async function runVoiceJointLoopback(options: VoiceJointOptions): Promise
 
 export function formatVoiceJointReport(report: VoiceJointReport): string {
   const lines: string[] = [
-    "voice-joint / API-only (claw4 upload+messages on stub; NOT npm run sim)",
+    "voice-joint / HTTP compat smoke (claw4 upload+messages on stub; NOT voice E2E; NOT npm run sim)",
     `stubOrigin: ${report.stubOrigin}`,
     `transcript(passthrough): ${report.transcript}`,
     `conversationId: ${report.conversationId}`,
@@ -232,6 +237,7 @@ export function formatVoiceJointReport(report: VoiceJointReport): string {
     lines.push(`ok ${check.name} [${check.layer}/${check.proof}]`);
   }
   lines.push(`JOINT_PENDING: ${report.pending.join("、")}`);
+  lines.push("HTTP compat smoke only: silent WAV + optional transcript= is NOT voice E2E.");
   lines.push("data.text = ASR/passthrough (not assistant.final). Primary path stub :8787; gateway :18789 may 503 without DeviceDhService.");
   lines.push("Authority: openbot-vp docs/integrations/device-digital-human/claw4-firmware-http-compat.md");
   return lines.join("\n");

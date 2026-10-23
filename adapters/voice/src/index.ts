@@ -6,6 +6,7 @@ export type {
   AsrStreamChunk,
   AsrStreamResult,
   AsrTranscribeOptions,
+  AsrUplinkCodec,
 } from "./asr-provider.ts";
 export type { TtsProvider, TtsSynthesizeOptions } from "./tts-provider.ts";
 export {
@@ -26,3 +27,29 @@ export { resolveAsrAudio } from "./asr-audio.ts";
 export type { ResolvedAsrAudio } from "./asr-audio.ts";
 export { WavParseError, buildWavPcm, isWavBuffer, parseWavPcm } from "./wav.ts";
 export type { WavPcmInfo } from "./wav.ts";
+
+export {
+  InjectableAudioBridge,
+  ProportionalSilenceTtsProvider,
+  createAudioBridge,
+  createProportionalSilenceTtsProvider,
+} from "./audio-bridge.ts";
+export type {
+  AudioBridge,
+  AudioBridgeAbortHandle,
+  AudioBridgeOptions,
+  ProportionalSilenceTtsProviderOptions,
+  SynthesizeOpusOptions,
+  TranscribeWavOptions,
+} from "./audio-bridge.ts";
+
+export {
+  DEVICE_EDGE_DEVICE_ID_HEADER,
+  DEVICE_EDGE_GRANT_HEADER,
+  buildOpenBotServiceHeaders,
+} from "./device-edge-auth.ts";
+export type {
+  DeviceEdgeAuthProxy,
+  DeviceEdgeDeviceCredential,
+  DeviceEdgeServiceCredential,
+} from "./device-edge-auth.ts";

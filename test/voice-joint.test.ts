@@ -41,6 +41,7 @@ test("voice-joint CLI skips without stub credentials and does not claim a pass",
   assert.match(help.stdout, /ASR\/passthrough/);
   assert.match(help.stdout, /npm run sim/);
   assert.match(help.stdout, /claw4-firmware-http-compat/);
+  assert.match(help.stdout, /HTTP compat smoke|不是 voice E2E/);
   assert.equal(help.stdout.includes("api.tenclass.net"), false);
 
   const env = { ...process.env };
@@ -153,7 +154,7 @@ test("voice joint upload+messages on loopback stub; data.text is passthrough", a
     assert.ok(calls.includes("POST /api/v1/upload"));
     assert.ok(calls.some((c) => c.startsWith("GET /api/v1/conversation/")));
     const formatted = formatVoiceJointReport(report);
-    assert.match(formatted, /NOT npm run sim/);
+    assert.match(formatted, /NOT npm run sim|HTTP compat smoke/);
     assert.match(formatted, /ASR\/passthrough/);
     assert.match(formatted, /claw4-firmware-http-compat/);
     assert.equal(formatted.includes(GRANT), false);

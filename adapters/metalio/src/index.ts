@@ -60,10 +60,15 @@ export type {
   AsrStreamChunk,
   AsrStreamResult,
   AsrTranscribeOptions,
+  AsrUplinkCodec,
   ResolvedAsrAudio,
   TtsProvider,
   TtsSynthesizeOptions,
   WavPcmInfo,
+  AudioBridge,
+  AudioBridgeAbortHandle,
+  AudioBridgeOptions,
+  ProportionalSilenceTtsProviderOptions,
 } from "../../voice/src/index.ts";
 export {
   MOCK_ASR_DEFAULT_TRANSCRIPT,
@@ -71,14 +76,28 @@ export {
   MockAsrProvider,
   MockTtsProvider,
   OpusFrameTtsProvider,
+  ProportionalSilenceTtsProvider,
+  InjectableAudioBridge,
   WavParseError,
   buildWavPcm,
+  createAudioBridge,
   createMockAsrProvider,
   createMockTtsProvider,
   createOpusFrameTtsProvider,
+  createProportionalSilenceTtsProvider,
   isWavBuffer,
   mockAsrTranscript,
   parseWavPcm,
   resolveAsrAudio,
 } from "../../voice/src/index.ts";
 export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "../../voice/src/index.ts";
+export {
+  DEVICE_EDGE_DEVICE_ID_HEADER,
+  DEVICE_EDGE_GRANT_HEADER,
+  buildOpenBotServiceHeaders,
+} from "../../voice/src/device-edge-auth.ts";
+export type {
+  DeviceEdgeAuthProxy,
+  DeviceEdgeDeviceCredential,
+  DeviceEdgeServiceCredential,
+} from "../../voice/src/device-edge-auth.ts";
