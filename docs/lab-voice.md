@@ -79,5 +79,5 @@ await startLabVoiceServer(plane, { asrProvider: asr, ttsProvider: tts });
 
 **TTS 下行采样率**：以 metalio server hello 为唯一真相（默认 **24 kHz** / mono / 60 ms）。不要另立 16k/24k 双标准。
 
-**Upload 归属**：`POST /api/v1/upload` 与 `POST /api/v1/record/upload` 由 **OpenBot gateway** 适配层提供，不属于本 SDK / device-control 冻结面。本包只提供对接示例与 Provider 抽象。
+**Upload 归属**：`POST /api/v1/upload` 与 `POST /api/v1/record/upload` 由 **OpenBot gateway** 适配层提供，不属于本 SDK / device-control 冻结面。对接示例、鉴权三件套、stub `:8787` 主路径与 `npm run voice-joint` 见 [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)（权威：openbot-vp `docs/integrations/device-digital-human/claw4-firmware-http-compat.md`）。**不要**把 upload 验收塞进 `npm run sim`。
 

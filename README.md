@@ -43,7 +43,7 @@ PR #17 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。�
 | `services/` | 认领、绑定、实验 OTA 记录、实验配置 HTTP、设备控制 HTTP；可选的文件 / sqlite 状态 |
 | `console/` | 认领、绑定、OTA、refresh、吊销的实验控制台 |
 | `simulator/` | 无真机的 B1–B3 stand-in 与重连模拟 |
-| `docs/` | A0 笔记、A2、A4、控制台 A5、**能力矩阵 A5**、B1–B3、设备控制 v1、联合验收、工程清单 |
+| `docs/` | A0 笔记、A2、A4、控制台 A5、能力矩阵 A5、**A6 gateway upload 对接**、B1–B3、设备控制 v1、联合验收、工程清单 |
 
 ## 语音与媒体
 
@@ -77,6 +77,7 @@ npm run device-control -- --help
 npm run sim-joint -- --help
 npm run voice -- --help
 npm run live-stub -- --help
+npm run voice-joint -- --help
 ```
 
 控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。实验语音见 [docs/lab-voice.md](docs/lab-voice.md)。
@@ -87,7 +88,7 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 ```
 
-步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。
+步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。Claw4 gateway upload 对接（**不在** device-control / **不进** `npm run sim`）见 [docs/integration/claw4-gateway-upload.md](docs/integration/claw4-gateway-upload.md) 与 `npm run voice-joint`。
 
 ## Agent A 验收还差什么
 
