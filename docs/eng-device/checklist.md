@@ -22,7 +22,7 @@
 - [ ] 固件 SHA 仍是 `ca3aa3fa027ff7dad2adf0c2d03c4f24aa838950`
 - [ ] 客户端 hello 仍是 websocket + Opus 16 kHz / 单声道 / 60 ms，`features.mcp=true`
 - [ ] 协议 version 2 / 3 的二进制头长度仍是 16 和 4
-- [ ] 没有引入 libopus；占位包仍带 `OB-OPUS-PLACEHOLDER`
+- [ ] 默认 mock 下行仍带 `OB-OPUS-PLACEHOLDER`；真 Opus 仅经注入的 `TtsProvider` / `OpusFrameEncoder`（`@evan/opus`），不连 api.tenclass.net
 - [ ] 打断路径不调用 ResetDecoder
 - [ ] 满队列残留仍是 40 × 60 ms = 2400 ms
 - [ ] 没有把 `api.tenclass.net` 配成语音或 OTA 生产入口

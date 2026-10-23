@@ -10,3 +10,9 @@
 合法外部实现示例：本地 FunASR SenseVoiceSmall、局域网 EdgeTTS。本包不捆绑权重，不硬编码厂商，不连接 `api.tenclass.net`。
 
 TTS 下行采样率以 metalio **server hello** 为准（默认 24 kHz / mono / 60 ms）。`POST /api/v1/upload` 与 `/api/v1/record/upload` 由 OpenBot gateway 提供，不属于本包。
+
+## 真 Opus（A2）
+
+- `OpusFrameTtsProvider` / `createOpusFrameTtsProvider`：用可注入的 `OpusFrameEncoder`（默认 `LibopusFrameEncoder` @ `@evan/opus`）产出裸 Opus 播报帧。
+- Mock 仍发 `OB-OPUS-PLACEHOLDER`。录音存储 Opus 不在本包。
+

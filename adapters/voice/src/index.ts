@@ -17,3 +17,8 @@ export {
   createMockTtsProvider,
   mockAsrTranscript,
 } from "./mock.ts";
+export {
+  OpusFrameTtsProvider,
+  createOpusFrameTtsProvider,
+} from "./opus-tts-provider.ts";
+export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "./opus-tts-provider.ts";

@@ -24,9 +24,27 @@
 | 2 | 16 字节大端头：version、type、reserved、timestamp、payload_size |
 | 3 | 4 字节头：type、reserved、payload_size（uint16 大端） |
 
-## Opus 占位边界
+## 两套 Opus 语义（勿混）
 
-本仓库不链接 libopus。`placeholderEncode` 只接受一整帧 PCM（16 kHz 为 1920 字节，24 kHz 为 2880 字节），并打上 `OB-OPUS-PLACEHOLDER`。这段字节不是 Opus 包，不能送去播放。
+| 语义 | 用途 | 采样/帧 | 本仓位置 |
+|---|---|---|---|
+| **播报帧 Opus** | metalio 实时 TTS 下行（裸包，非 Ogg） | hello 默认 **24 kHz / mono / 60 ms** | `OpusFrameEncoder` / `TtsProvider.synthesize` |
+| **录音存储 Opus** | 录音卡等高码率落盘（常 256 kbps / Ogg 等） | 另一 adapter，**不**进 metalio 常量 | 预留 `adapters/record-card` 等 |
+
+改 hello 采样率须书面一次；不搞 16k/24k 双标准验收口径。
+
+## Opus 占位边界（mock）
+
+Lab 默认 `MockTtsProvider` 仍走 `placeholderEncode` / `OB-OPUS-PLACEHOLDER`。`placeholderEncode` 只接受一整帧 PCM（16 kHz 为 1920 字节，24 kHz 为 2880 字节）。这段字节**不是** Opus 包，不能送去播放。
+
+## 真 Opus 编码器（A2）
+
+注入真 `TtsProvider` 后，下行必须是可解码的**播报帧** Opus。本仓提供可注入的 `OpusFrameEncoder`：
+
+- 默认实现：`LibopusFrameEncoder`（依赖 `@evan/opus` = libopus **native 预编译或 WASM**；可用 `OPUS_FORCE_WASM=1` 强制 WASM）。
+- **不**连接 `api.tenclass.net`；厂商 TTS（EdgeTTS 等）仍在包外，只需产出裸 Opus 包或经本编码器从 PCM 编码。
+- 参考 Provider：`OpusFrameTtsProvider` / `createOpusFrameTtsProvider`（lab 用 tone/silence PCM → 真 Opus，证明下行路径）。
+- 判别：`isOpusPlaceholderPayload` / `looksLikeRawOpusPacket`。
 
 ## 打断残留 2400 ms
 
