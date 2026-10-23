@@ -1,4 +1,5 @@
 import { OPUS_PLACEHOLDER_MAGIC } from "../../metalio/src/opus-boundary.ts";
+import { resolveAsrAudio } from "./asr-audio.ts";
 import type { AsrProvider, AsrStreamChunk, AsrStreamResult, AsrTranscribeOptions } from "./asr-provider.ts";
 import type { TtsProvider, TtsSynthesizeOptions } from "./tts-provider.ts";
 
@@ -22,29 +23,66 @@ export function mockAsrTranscript(input: { listenText?: string; binaryNote?: str
   return MOCK_ASR_DEFAULT_TRANSCRIPT;
 }
 
-/**
- * Default lab ASR: UTF-8 hint buffers (listen text or `ASR:…` notes) map to
- * the same transcript rules as before. Empty audio → `lab-transcript`.
- * Streaming is reserved and rejects until a real provider is injected.
- */
-export class MockAsrProvider implements AsrProvider {
-  async transcribe(audio: Buffer, _options: AsrTranscribeOptions): Promise<string> {
-    if (audio.byteLength === 0) {
-      return MOCK_ASR_DEFAULT_TRANSCRIPT;
-    }
-    const asText = audio.toString("utf8");
-    if (asText.startsWith("ASR:")) {
-      return mockAsrTranscript({ binaryNote: asText });
-    }
-    // Non-empty UTF-8 without the ASR: prefix is treated as typed listen text.
-    if (!asText.includes("\0") && /^[\x09\x0a\x0d\x20-\x7e\u0080-\uffff]*$/.test(asText)) {
-      return mockAsrTranscript({ listenText: asText });
-    }
+function transcriptFromAudioBytes(audio: Buffer): string {
+  if (audio.byteLength === 0) {
     return MOCK_ASR_DEFAULT_TRANSCRIPT;
   }
+  const asText = audio.toString("utf8");
+  if (asText.startsWith("ASR:")) {
+    return mockAsrTranscript({ binaryNote: asText });
+  }
+  // Non-empty UTF-8 without the ASR: prefix is treated as typed listen text.
+  if (!asText.includes("\0") && /^[\x09\x0a\x0d\x20-\x7e\u0080-\uffff]*$/.test(asText)) {
+    return mockAsrTranscript({ listenText: asText });
+  }
+  return MOCK_ASR_DEFAULT_TRANSCRIPT;
+}
 
-  async *stream(_chunks: AsyncIterable<AsrStreamChunk>): AsyncIterable<AsrStreamResult> {
-    throw new Error("MockAsrProvider.stream is a reserved stub; inject a real AsrProvider for streaming ASR");
+/**
+ * Default lab ASR: UTF-8 hint buffers (listen text or `ASR:…` notes) map to
+ * the same transcript rules as before. Empty / binary PCM / WAV → `lab-transcript`.
+ * WAV headers supply sampleRate/channels via resolveAsrAudio (whole-utterance path).
+ * stream() is a usable stub: yields partial after each chunk, final on endOfUtterance
+ * or when the async iterable ends.
+ */
+export class MockAsrProvider implements AsrProvider {
+  async transcribe(audio: Buffer, options: AsrTranscribeOptions): Promise<string> {
+    const resolved = resolveAsrAudio(audio, options);
+    if (resolved.isWav) {
+      // Real PCM from WAVE — lab has no model; return default (or UTF-8 if payload is a hint).
+      return transcriptFromAudioBytes(resolved.pcm ?? Buffer.alloc(0));
+    }
+    return transcriptFromAudioBytes(resolved.audio);
+  }
+
+  async *stream(chunks: AsyncIterable<AsrStreamChunk>): AsyncIterable<AsrStreamResult> {
+    let acc = Buffer.alloc(0);
+    let lastPartial = "";
+    let sampleRate = 16_000;
+    let channels = 1;
+    for await (const chunk of chunks) {
+      if (chunk.sampleRate !== undefined) {
+        sampleRate = chunk.sampleRate;
+      }
+      if (chunk.channels !== undefined) {
+        channels = chunk.channels;
+      }
+      if (chunk.data.byteLength > 0) {
+        acc = Buffer.concat([acc, chunk.data]);
+      }
+      const partial = await this.transcribe(acc, { sampleRate, channels, format: "pcm" });
+      if (partial !== lastPartial) {
+        lastPartial = partial;
+        yield { partial };
+      }
+      if (chunk.endOfUtterance) {
+        const finalText = await this.transcribe(acc, { sampleRate, channels, format: "pcm" });
+        yield { final: finalText };
+        return;
+      }
+    }
+    const finalText = await this.transcribe(acc, { sampleRate, channels, format: "pcm" });
+    yield { final: finalText };
   }
 }
 

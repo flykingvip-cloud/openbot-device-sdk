@@ -39,16 +39,23 @@ export {
   MOCK_TTS_FRAME_COUNT,
   MockAsrProvider,
   MockTtsProvider,
+  WavParseError,
+  buildWavPcm,
   createMockAsrProvider,
   createMockTtsProvider,
+  isWavBuffer,
+  parseWavPcm,
+  resolveAsrAudio,
 } from "../../adapters/voice/src/index.ts";
 export type {
   AsrProvider,
   AsrStreamChunk,
   AsrStreamResult,
   AsrTranscribeOptions,
+  ResolvedAsrAudio,
   TtsProvider,
   TtsSynthesizeOptions,
+  WavPcmInfo,
 } from "../../adapters/voice/src/index.ts";
 export type {
   BindInput,

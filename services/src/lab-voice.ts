@@ -16,7 +16,9 @@ import {
   MockAsrProvider,
   MockTtsProvider,
   mockAsrTranscript,
+  resolveAsrAudio,
   type AsrProvider,
+  type AsrTranscribeOptions,
   type TtsProvider,
 } from "../../adapters/voice/src/index.ts";
 
@@ -223,6 +225,8 @@ function attachVoiceSession(
   let listening = false;
   let listenText = "";
   let binaryNote = "";
+  /** Whole-utterance PCM/WAV uplink collected during listen (A3). */
+  const audioChunks: Buffer[] = [];
   let aborted = false;
   let speaking = false;
   let turn = 0;
@@ -263,9 +267,13 @@ function attachVoiceSession(
         if (refuseIfCredentialDead()) {
           return;
         }
-        const text = frame.payload.toString("utf8");
-        if (text.startsWith("ASR:")) {
-          binaryNote = text;
+        const payload = Buffer.from(frame.payload);
+        const asText = payload.toString("utf8");
+        if (asText.startsWith("ASR:")) {
+          binaryNote = asText;
+        } else {
+          // PCM/WAV (or other binary) whole-utterance path — finishUtterance → AsrProvider.
+          audioChunks.push(payload);
         }
       }
     }
@@ -347,6 +355,7 @@ function attachVoiceSession(
       listening = true;
       listenText = "";
       binaryNote = "";
+      audioChunks.length = 0;
       return;
     }
     if (message.state === "detect" && typeof message.text === "string") {
@@ -363,9 +372,11 @@ function attachVoiceSession(
   }
 
   /**
-   * Runs injected AsrProvider (default mock). With no live stub this also speaks that
-   * transcript and is labeled `sim`. A configured stub speaks only `assistant.visible` /
-   * `assistant.final`. It does not turn the ASR text into OpenBot dialogue.
+   * Runs injected AsrProvider (default mock). Whole-utterance WAV/PCM collected on the
+   * binary uplink is preferred; otherwise listen text / `ASR:` notes (lab hints).
+   * With no live stub this also speaks that transcript and is labeled `sim`. A configured
+   * stub speaks only `assistant.visible` / `assistant.final`. It does not turn the ASR
+   * text into OpenBot dialogue.
    */
   async function finishUtterance(): Promise<void> {
     if (refuseIfCredentialDead()) {
@@ -373,15 +384,30 @@ function attachVoiceSession(
     }
     listening = false;
     const hint = listenText.length > 0 ? listenText : binaryNote;
+    const captured = audioChunks.length > 0 ? Buffer.concat(audioChunks) : Buffer.alloc(0);
     listenText = "";
     binaryNote = "";
+    audioChunks.length = 0;
     let text: string;
     try {
-      text = await asrProvider.transcribe(Buffer.from(hint, "utf8"), {
-        sampleRate: UPLINK_SAMPLE_RATE,
-        channels: UPLINK_CHANNELS,
-        format: "pcm",
-      });
+      let audio: Buffer;
+      let options: AsrTranscribeOptions;
+      if (captured.byteLength > 0) {
+        const resolved = resolveAsrAudio(captured, {
+          sampleRate: UPLINK_SAMPLE_RATE,
+          channels: UPLINK_CHANNELS,
+        });
+        audio = resolved.audio;
+        options = resolved.options;
+      } else {
+        audio = Buffer.from(hint, "utf8");
+        options = {
+          sampleRate: UPLINK_SAMPLE_RATE,
+          channels: UPLINK_CHANNELS,
+          format: "pcm",
+        };
+      }
+      text = await asrProvider.transcribe(audio, options);
     } catch (error) {
       reportLiveFailure(error);
       return;

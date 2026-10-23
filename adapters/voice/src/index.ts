@@ -22,3 +22,7 @@ export {
   createOpusFrameTtsProvider,
 } from "./opus-tts-provider.ts";
 export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "./opus-tts-provider.ts";
+export { resolveAsrAudio } from "./asr-audio.ts";
+export type { ResolvedAsrAudio } from "./asr-audio.ts";
+export { WavParseError, buildWavPcm, isWavBuffer, parseWavPcm } from "./wav.ts";
+export type { WavPcmInfo } from "./wav.ts";

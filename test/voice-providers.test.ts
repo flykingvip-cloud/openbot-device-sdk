@@ -37,13 +37,19 @@ test("mock ASR mirrors historical transcript rules", async () => {
     await asr.transcribe(Buffer.from("ASR:from-audio"), { sampleRate: 16000, channels: 1, format: "pcm" }),
     "from-audio",
   );
-  await assert.rejects(async () => {
-    const stream = asr.stream;
-    assert.ok(stream);
-    for await (const _ of stream.call(asr, (async function* () {})())) {
-      void _;
+  const stream = asr.stream;
+  assert.ok(stream);
+  const streamed: Array<{ kind: "partial" | "final"; text: string }> = [];
+  for await (const item of stream.call(asr, (async function* () {
+    yield { data: Buffer.from("stub-ok"), endOfUtterance: true };
+  })())) {
+    if ("final" in item && item.final !== undefined) {
+      streamed.push({ kind: "final", text: item.final });
+    } else if ("partial" in item) {
+      streamed.push({ kind: "partial", text: item.partial });
     }
-  }, /reserved stub/);
+  }
+  assert.equal(streamed.some((item) => item.kind === "final" && item.text === "stub-ok"), true);
 });
 
 test("mock TTS yields placeholder Opus frames at hello sample rate", async () => {

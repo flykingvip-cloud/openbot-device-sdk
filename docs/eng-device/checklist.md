@@ -27,6 +27,7 @@
 - [ ] 真 TtsProvider 路径（A4）：AbortSpeaking 清解码队列 / ResetDecoder；lab 断言 `queueCleared`，`residualMs === 0`；不以 2400 ms 作最终 eng 门闩
 - [ ] 没有把 `api.tenclass.net` 配成语音或 OTA 生产入口
 - [ ] AsrProvider / TtsProvider 可注入（A1）；默认仍是 mock。真实 ASR / TTS 权重与厂商在包外。默认 TTS 仍是 `OB-OPUS-PLACEHOLDER`。未设置 stub 时 `finishUtterance` 标明 sim；配了 loopback stub 也只消费 visible/final，不是端到端通过
+- [ ] ASR 双模式（方案 A3）：整段 WAV/PCM → `transcribe`（WAV 采样率来自文件头）；流式 `stream` partial/final 可测（mock stub 或外部 FunASR）。不捆绑权重；不进 device-control v1；upload HTTP 不在本包
 - [ ] 未设置 `OPENBOT_LAB_VOICE_WSS_URL` 时，实验配置里的 voice WSS 仍是 `wss://lab.invalid/voice`
 
 ## A3 媒体与工具

@@ -71,9 +71,15 @@ Lab 默认 `MockTtsProvider` 仍走 `placeholderEncode` / `OB-OPUS-PLACEHOLDER`�
 
 | 接口 | 形状 | 说明 |
 |---|---|---|
-| `AsrProvider.transcribe` | `(pcm\|wav Buffer, { sampleRate, channels }) → Promise<string>` | 整段转写 |
-| `AsrProvider.stream` | 预留：chunk → partial/final | A3 接线；mock 可抛 stub |
+| `AsrProvider.transcribe` | `(pcm\|wav Buffer, { sampleRate, channels, format? }) → Promise<string>` | 整段转写；WAV 头提供 sampleRate/channels（`resolveAsrAudio`） |
+| `AsrProvider.stream` | `AsyncIterable<AsrStreamChunk> → partial/final` | A3 可用 stub（mock）或注入真实现 |
 | `TtsProvider.synthesize` | `(text, { sampleRate }) → AsyncIterable<Buffer>` | 真 Provider 下为 Opus 包 |
+
+### ASR 双模式（A3）
+
+- **整段：** WAV/PCM → `transcribe`。`parseWavPcm` / `resolveAsrAudio` 从 RIFF fmt 读采样率。Lab `finishUtterance` 在 listen 期间收集二进制上行，优先整段送 Provider。
+- **流式：** WS chunk → `stream()` partial/final。Mock 为可测 stub；FunASR 等外部注入，**不捆绑**权重。
+- **不做：** 不连 `api.tenclass.net`；不把 `POST /api/v1/upload` / `record/upload` 放进本 SDK（属 gateway / 方案 B）；不改冻结 device-control v1。
 
 TTS 下行采样率跟随 **server hello**（默认 24000 Hz）。`POST /api/v1/upload` 属 OpenBot gateway，不进本包、不进冻结 `/api/device-platform/v1`。
 
