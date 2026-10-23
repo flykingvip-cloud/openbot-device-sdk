@@ -3,7 +3,6 @@ import type { Duplex } from "node:stream";
 
 import {
   MetalioAbortResidual,
-  OPUS_PLACEHOLDER_MAGIC,
   PROTOCOL_VERSION_DEFAULT,
   SERVER_FRAME_DURATION_DEFAULT_MS,
   SERVER_SAMPLE_RATE_DEFAULT,
@@ -12,6 +11,15 @@ import {
   OPUS_FRAME_DURATION_MS,
   DECODE_QUEUE_BUDGET_MS,
 } from "../../adapters/metalio/src/index.ts";
+import {
+  MockAsrProvider,
+  MockTtsProvider,
+  mockAsrTranscript,
+  type AsrProvider,
+  type TtsProvider,
+} from "../../adapters/voice/src/index.ts";
+
+export { mockAsrTranscript };
 import { SessionBook } from "../../integrations/openbot-b2/src/index.ts";
 import {
   liveDialogueMode,
@@ -22,8 +30,6 @@ import {
 } from "../../integrations/openbot-longitudinal/src/index.ts";
 import { ControlPlane } from "./control-plane.ts";
 import { WsFrameDecoder, encodeServerFrame, takeSocket, websocketAccept } from "./voice-ws.ts";
-
-const TTS_FRAME_COUNT = 8;
 
 export interface LabAbortReport {
   residualMs: number;
@@ -62,14 +68,15 @@ export class LabPlayQueue {
   }
 }
 
-export function mockAsrTranscript(input: { listenText?: string; binaryNote?: string }): string {
-  if (input.listenText !== undefined && input.listenText.length > 0) {
-    return input.listenText;
-  }
-  if (input.binaryNote !== undefined && input.binaryNote.startsWith("ASR:")) {
-    return input.binaryNote.slice(4);
-  }
-  return "lab-transcript";
+export interface LabVoiceServerOptions {
+  host?: string;
+  port?: number;
+  env?: NodeJS.ProcessEnv;
+  fetchImpl?: typeof fetch;
+  /** Injected ASR; default MockAsrProvider preserves lab-transcript / listen / ASR: hints. */
+  asrProvider?: AsrProvider;
+  /** Injected TTS; default MockTtsProvider yields OB-OPUS-PLACEHOLDER frames. */
+  ttsProvider?: TtsProvider;
 }
 
 export interface LabVoiceServer {
@@ -81,11 +88,13 @@ export interface LabVoiceServer {
 
 export function startLabVoiceServer(
   plane: ControlPlane,
-  options: { host?: string; port?: number; env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch } = {},
+  options: LabVoiceServerOptions = {},
 ): Promise<LabVoiceServer> {
   const host = options.host ?? "127.0.0.1";
   const env = options.env ?? process.env;
   const fetchImpl = options.fetchImpl ?? fetch;
+  const asrProvider = options.asrProvider ?? new MockAsrProvider();
+  const ttsProvider = options.ttsProvider ?? new MockTtsProvider();
   const book = new SessionBook({ plane });
   const sockets = new Set<Duplex>();
   const server = createServer();
@@ -95,7 +104,7 @@ export function startLabVoiceServer(
     socket.on("close", () => {
       sockets.delete(socket);
     });
-    acceptVoiceUpgrade(plane, book, req, socket, env, fetchImpl);
+    acceptVoiceUpgrade(plane, book, req, socket, env, fetchImpl, asrProvider, ttsProvider);
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -123,6 +132,8 @@ function acceptVoiceUpgrade(
   socket: Duplex,
   env: NodeJS.ProcessEnv,
   fetchImpl: typeof fetch,
+  asrProvider: AsrProvider,
+  ttsProvider: TtsProvider,
 ): void {
   const deviceId = headerValue(req, "device-id");
   const clientId = headerValue(req, "client-id");
@@ -149,7 +160,7 @@ function acceptVoiceUpgrade(
       "",
     ].join("\r\n"),
   );
-  attachVoiceSession(plane, book, socket, deviceId, version, token, env, fetchImpl);
+  attachVoiceSession(plane, book, socket, deviceId, version, token, env, fetchImpl, asrProvider, ttsProvider);
 }
 
 function attachVoiceSession(
@@ -161,6 +172,8 @@ function attachVoiceSession(
   token: string,
   env: NodeJS.ProcessEnv,
   fetchImpl: typeof fetch,
+  asrProvider: AsrProvider,
+  ttsProvider: TtsProvider,
 ): void {
   const decoder = new WsFrameDecoder();
   const play = new LabPlayQueue();
@@ -297,30 +310,44 @@ function attachVoiceSession(
     }
     if (message.state === "detect" && typeof message.text === "string") {
       listenText = message.text;
-      finishUtterance();
+      void finishUtterance();
       return;
     }
     if (message.state === "stop") {
       if (typeof message.text === "string" && message.text.length > 0) {
         listenText = message.text;
       }
-      finishUtterance();
+      void finishUtterance();
     }
   }
 
   /**
-   * Local mock ASR. With no live stub this also speaks that transcript and is labeled `sim`.
-   * A configured stub speaks only `assistant.visible` / `assistant.final`. It does not
-   * turn the ASR text into OpenBot dialogue.
+   * Runs injected AsrProvider (default mock). With no live stub this also speaks that
+   * transcript and is labeled `sim`. A configured stub speaks only `assistant.visible` /
+   * `assistant.final`. It does not turn the ASR text into OpenBot dialogue.
    */
-  function finishUtterance(): void {
+  async function finishUtterance(): Promise<void> {
     if (refuseIfCredentialDead()) {
       return;
     }
     listening = false;
-    const text = mockAsrTranscript({ listenText, binaryNote });
+    const hint = listenText.length > 0 ? listenText : binaryNote;
     listenText = "";
     binaryNote = "";
+    let text: string;
+    try {
+      text = await asrProvider.transcribe(Buffer.from(hint, "utf8"), {
+        sampleRate: UPLINK_SAMPLE_RATE,
+        channels: UPLINK_CHANNELS,
+        format: "pcm",
+      });
+    } catch (error) {
+      reportLiveFailure(error);
+      return;
+    }
+    if (refuseIfCredentialDead()) {
+      return;
+    }
     turn += 1;
     const turnIndex = turn;
     book.append(sessionId, { eventId: `turn-${turnIndex}`, type: "user.turn" });
@@ -345,7 +372,7 @@ function attachVoiceSession(
     }
     if (mode === "sim") {
       sendText({ type: "stt", session_id: sessionId, text, source: "sim", dialogue: "sim" });
-      beginTts(text, "sim");
+      void beginTts(text, "sim");
       return;
     }
     sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "sim" });
@@ -399,7 +426,7 @@ function attachVoiceSession(
       return;
     }
     drainingSpeech = true;
-    beginTts(next.text, "openbot", () => {
+    void beginTts(next.text, "openbot", () => {
       drainingSpeech = false;
       drainSpeech();
     });
@@ -413,42 +440,52 @@ function attachVoiceSession(
     sendText({ type: "error", code: "live_stub", source: "openbot", dialogue: "openbot", detail });
   }
 
-  function beginTts(text: string, source: "sim" | "openbot", onDone?: () => void): void {
+  async function beginTts(text: string, source: "sim" | "openbot", onDone?: () => void): Promise<void> {
     aborted = false;
     speaking = true;
     play.start();
     const dialogue = source === "sim" ? "sim" : "openbot";
     sendText({ type: "tts", state: "start", session_id: sessionId, text, source, dialogue });
-    const payload = Buffer.from(OPUS_PLACEHOLDER_MAGIC);
-    let index = 0;
     const finish = () => {
       onDone?.();
     };
-    const step = () => {
-      if (refuseIfCredentialDead()) {
-        speaking = false;
-        finish();
-        return;
-      }
-      if (!speaking || aborted || index >= TTS_FRAME_COUNT) {
-        if (speaking && !aborted) {
-          sendText({ type: "tts", state: "stop", session_id: sessionId, source, dialogue });
+    try {
+      for await (const payload of ttsProvider.synthesize(text, { sampleRate: SERVER_SAMPLE_RATE_DEFAULT })) {
+        if (refuseIfCredentialDead()) {
           speaking = false;
+          finish();
+          return;
         }
-        finish();
-        return;
+        if (!speaking || aborted) {
+          finish();
+          return;
+        }
+        const queued = play.sent(payload);
+        if (queued !== "queued") {
+          speaking = false;
+          finish();
+          return;
+        }
+        sendBinary(payload);
+        await new Promise<void>((resolve) => {
+          setImmediate(resolve);
+        });
       }
-      const queued = play.sent(payload);
-      if (queued !== "queued") {
+      if (speaking && !aborted) {
+        if (refuseIfCredentialDead()) {
+          speaking = false;
+          finish();
+          return;
+        }
+        sendText({ type: "tts", state: "stop", session_id: sessionId, source, dialogue });
         speaking = false;
-        finish();
-        return;
       }
-      sendBinary(payload);
-      index += 1;
-      setImmediate(step);
-    };
-    setImmediate(step);
+      finish();
+    } catch (error) {
+      speaking = false;
+      reportLiveFailure(error);
+      finish();
+    }
   }
 
   function stopSpeaking(reason: string | undefined): void {

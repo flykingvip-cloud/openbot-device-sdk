@@ -18,6 +18,7 @@
     "contracts/src/**/*.ts",
     "sdk/src/**/*.ts",
     "adapters/metalio/src/**/*.ts",
+    "adapters/voice/src/**/*.ts",
     "integrations/**/*.ts",
     "services/src/**/*.ts",
     "console/src/**/*.ts",

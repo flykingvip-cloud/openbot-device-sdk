@@ -25,7 +25,7 @@ function main(): void {
           `让实验配置改用这个地址: ${LAB_VOICE_WSS_ENV}=${listening.url}`,
           "只接受已绑定且未吊销的短时 token。hello 使用 Metalio 的 websocket + opus 占位。",
           "TTS 字节是 OB-OPUS-PLACEHOLDER。打断后停止继续发送，已入队残留不超过 2400 ms。",
-          "不是生产 ASR/TTS，也不会连接 api.tenclass.net。",
+          "ASR/TTS 可注入 Provider（默认 mock 占位）。不是生产 ASR/TTS，也不会连接 api.tenclass.net。",
           "",
         ].join("\n"),
       );
@@ -99,6 +99,7 @@ function helpText(): string {
     "  本地模拟要显式设置 OPENBOT_DEVICE_DH_TEST_MODE=1，并标明 dialogue: sim",
     "  没设 TEST_MODE、也没配 stub 时，不会把 ASR 文本播成助手话",
     "  设置 stub URL、service Basic 和 grant 后，助手话只来自 assistant.visible / assistant.final",
+    "  ASR/TTS 通过 AsrProvider/TtsProvider 注入；默认 mock 占位",
     "  不连接 api.tenclass.net，也不烧录固件",
   ].join("\n");
 }

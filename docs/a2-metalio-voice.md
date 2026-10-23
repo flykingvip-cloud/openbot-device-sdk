@@ -40,6 +40,18 @@
 
 `tts.start` 会清掉 `aborted_`。只有从 Idle 或 Listening 进入 Speaking 时才清空队列。已经在 Speaking 时再次 `tts.start` 不会清队列。
 
+## Provider 注入（A1）
+
+`adapters/voice` 定义可注入的 `AsrProvider` / `TtsProvider`，并由 `adapters/metalio` 再导出。Lab（`npm run voice`）默认 mock；真机或对接方可注入 FunASR / EdgeTTS 等外部实现，**不**把厂商或权重写进本包。
+
+| 接口 | 形状 | 说明 |
+|---|---|---|
+| `AsrProvider.transcribe` | `(pcm\|wav Buffer, { sampleRate, channels }) → Promise<string>` | 整段转写 |
+| `AsrProvider.stream` | 预留：chunk → partial/final | A3 接线；mock 可抛 stub |
+| `TtsProvider.synthesize` | `(text, { sampleRate }) → AsyncIterable<Buffer>` | 真 Provider 下为 Opus 包 |
+
+TTS 下行采样率跟随 **server hello**（默认 24000 Hz）。`POST /api/v1/upload` 属 OpenBot gateway，不进本包、不进冻结 `/api/device-platform/v1`。
+
 ## 不做的事
 
 不连接 `api.tenclass.net`，不把小智 OTA 当成设备平台的语音入口。
