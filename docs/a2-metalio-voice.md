@@ -96,7 +96,7 @@ Injectable `createAudioBridge` (`adapters/voice`): `wavBytes → AsrProvider.tra
 
 `OpusFrameTtsProvider` 仍是 lab/格式路径（忽略 text）。桥接侧 spoken TTS 须注入真 `TtsProvider`；测试可用 `ProportionalSilenceTtsProvider`（静音长度 ∝ 文本）。
 
-`AsrStreamChunk` 可选 `codec`/`format`: `pcm`|`wav`|`opus`。Lab **不得**把 Opus 上行标成 PCM；包边界保留。Opus→PCM 解码接线标为 P1 TODO。
+`AsrStreamChunk` 可选 `codec`/`format`: `pcm`|`wav`|`opus`。Lab **不得**把 Opus 上行标成 PCM；包边界保留。P1-2：Mock/reference `stream()` 内 Opus→PCM（`createOpusUplinkDecoder` / `wrapAsrProviderWithOpusDecode`）；也可注入 codec-aware Provider。Lab `finishUtterance` 对分包上行调用 `asrProvider.stream()`。
 
 ## Reference adapters (P1-1)
 

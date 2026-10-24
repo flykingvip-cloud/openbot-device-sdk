@@ -15,10 +15,15 @@ import {
 import {
   MockAsrProvider,
   MockTtsProvider,
+  finalTranscriptFromStream,
+  isWavBuffer,
   mockAsrTranscript,
+  packetsToAsrStreamChunks,
   resolveAsrAudio,
+  uplinkPacketsLookLikeOpus,
   type AsrProvider,
   type AsrTranscribeOptions,
+  type AsrUplinkCodec,
   type TtsProvider,
 } from "../../adapters/voice/src/index.ts";
 
@@ -272,7 +277,7 @@ function attachVoiceSession(
         if (asText.startsWith("ASR:")) {
           binaryNote = asText;
         } else {
-          // PCM/WAV (or other binary) whole-utterance path — finishUtterance → AsrProvider.
+          // Binary uplink packets (Opus/PCM/WAV). finishUtterance prefers stream() for packets.
           audioChunks.push(payload);
         }
       }
@@ -372,8 +377,11 @@ function attachVoiceSession(
   }
 
   /**
-   * Runs injected AsrProvider (default mock). Whole-utterance WAV/PCM collected on the
-   * binary uplink is preferred; otherwise listen text / `ASR:` notes (lab hints).
+   * Runs injected AsrProvider (default mock).
+   * - Whole-utterance WAV -> `transcribe` via resolveAsrAudio.
+   * - Packetized uplink (Opus or PCM frames) -> `asrProvider.stream()` with preserved
+   *   packet boundaries; Opus chunks are labeled codec:"opus" (never PCM).
+   * - Otherwise listen text / `ASR:` notes (lab hints) via transcribe or stream.
    * With no live stub this also speaks that transcript and is labeled `sim`. A configured
    * stub speaks only `assistant.visible` / `assistant.final`. It does not turn the ASR
    * text into OpenBot dialogue.
@@ -384,30 +392,13 @@ function attachVoiceSession(
     }
     listening = false;
     const hint = listenText.length > 0 ? listenText : binaryNote;
-    const captured = audioChunks.length > 0 ? Buffer.concat(audioChunks) : Buffer.alloc(0);
+    const packets = audioChunks.map((chunk) => Buffer.from(chunk));
     listenText = "";
     binaryNote = "";
     audioChunks.length = 0;
     let text: string;
     try {
-      let audio: Buffer;
-      let options: AsrTranscribeOptions;
-      if (captured.byteLength > 0) {
-        const resolved = resolveAsrAudio(captured, {
-          sampleRate: UPLINK_SAMPLE_RATE,
-          channels: UPLINK_CHANNELS,
-        });
-        audio = resolved.audio;
-        options = resolved.options;
-      } else {
-        audio = Buffer.from(hint, "utf8");
-        options = {
-          sampleRate: UPLINK_SAMPLE_RATE,
-          channels: UPLINK_CHANNELS,
-          format: "pcm",
-        };
-      }
-      text = await asrProvider.transcribe(audio, options);
+      text = await resolveLabUtteranceTranscript(asrProvider, packets, hint);
     } catch (error) {
       reportLiveFailure(error);
       return;
@@ -633,4 +624,63 @@ function closeVoice(server: Server, sockets: Set<Duplex>): Promise<void> {
       resolve();
     });
   });
+}
+
+
+/**
+ * Lab ASR entry for one listen utterance (P1-2).
+ * WAV whole-file -> transcribe. Otherwise, when `asrProvider.stream` exists, call stream()
+ * with per-packet AsrStreamChunk (codec opus when packets look like Opus; never label Opus as PCM).
+ */
+async function resolveLabUtteranceTranscript(
+  asrProvider: AsrProvider,
+  packets: Buffer[],
+  hint: string,
+): Promise<string> {
+  const captured = packets.length > 0 ? Buffer.concat(packets) : Buffer.alloc(0);
+
+  if (captured.byteLength > 0 && isWavBuffer(captured)) {
+    const resolved = resolveAsrAudio(captured, {
+      sampleRate: UPLINK_SAMPLE_RATE,
+      channels: UPLINK_CHANNELS,
+    });
+    return asrProvider.transcribe(resolved.audio, resolved.options);
+  }
+
+  if (typeof asrProvider.stream === "function") {
+    let codec: AsrUplinkCodec = "pcm";
+    let streamPackets: Buffer[] = packets;
+    if (packets.length > 0) {
+      codec = uplinkPacketsLookLikeOpus(packets) ? "opus" : "pcm";
+    } else {
+      streamPackets = [Buffer.from(hint, "utf8")];
+      codec = "pcm";
+    }
+    const chunks = packetsToAsrStreamChunks(streamPackets, {
+      sampleRate: UPLINK_SAMPLE_RATE,
+      channels: UPLINK_CHANNELS,
+      codec,
+    });
+    return finalTranscriptFromStream(asrProvider, chunks);
+  }
+
+  // Fallback when Provider has no stream(): whole-utterance transcribe.
+  let audio: Buffer;
+  let options: AsrTranscribeOptions;
+  if (captured.byteLength > 0) {
+    const resolved = resolveAsrAudio(captured, {
+      sampleRate: UPLINK_SAMPLE_RATE,
+      channels: UPLINK_CHANNELS,
+    });
+    audio = resolved.audio;
+    options = resolved.options;
+  } else {
+    audio = Buffer.from(hint, "utf8");
+    options = {
+      sampleRate: UPLINK_SAMPLE_RATE,
+      channels: UPLINK_CHANNELS,
+      format: "pcm",
+    };
+  }
+  return asrProvider.transcribe(audio, options);
 }

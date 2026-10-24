@@ -25,6 +25,13 @@ TTS 下行采样率以 metalio **server hello** 为准（默认 24 kHz / mono / 
 
 设备能力矩阵（mic/storage/ble/usb/speaker 可选）与 metalio / record-card 槽位见 [docs/a5-device-capability-matrix.md](../../docs/a5-device-capability-matrix.md)。
 
+## 上行 Opus stream（P1-2）
+
+- `AsrStreamChunk.codec/format: "opus"` — 包边界保留；不得标成 PCM。
+- `createOpusUplinkDecoder` / `wrapAsrProviderWithOpusDecode`：PCM-only Provider 外包一层 Opus→PCM。
+- 也可直接注入 **codec-aware** Provider（不要再 wrap）。
+- Lab `finishUtterance` 对分包上行调用 `asrProvider.stream()`；整段 WAV 仍走 `transcribe`。
+
 ## 参考 ASR / TTS（P1-1）
 
 可选 FunASR / EdgeTTS **形态**的 HTTP 参考实现，见 `src/reference/` 与 [docs/asr-tts-reference-adapters.md](../../docs/asr-tts-reference-adapters.md)。

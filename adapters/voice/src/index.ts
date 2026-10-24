@@ -25,6 +25,20 @@ export {
 export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "./opus-tts-provider.ts";
 export { resolveAsrAudio } from "./asr-audio.ts";
 export type { ResolvedAsrAudio } from "./asr-audio.ts";
+
+export {
+  createOpusUplinkDecoder,
+  finalTranscriptFromStream,
+  packetsToAsrStreamChunks,
+  resolveAsrStreamCodec,
+  uplinkPacketsLookLikeOpus,
+  wrapAsrProviderWithOpusDecode,
+} from "./opus-uplink.ts";
+export type {
+  CreateOpusUplinkDecoderOptions,
+  OpusUplinkDecoder,
+  WrapAsrProviderWithOpusDecodeOptions,
+} from "./opus-uplink.ts";
 export { WavParseError, buildWavPcm, isWavBuffer, parseWavPcm } from "./wav.ts";
 export type { WavPcmInfo } from "./wav.ts";
 
