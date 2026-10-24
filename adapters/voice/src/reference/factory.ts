@@ -123,8 +123,9 @@ export function createVoiceProvidersFromEnv(
  * createAudioBridge wired from env/config for OpenBot gateway / Agent B.
  *
  * Typical Agent B inject:
- * - OPENBOT_DEVICE_SDK_ROOT=/path/to/openbot-device-sdk
- * - import { createAudioBridgeFromVoiceEnv } from `<SDK_ROOT>/adapters/voice/src/reference/index.ts`
+ * - Preferred: import from `@flykingvip-cloud/openbot-device-sdk` (see docs/npm-publish.md)
+ * - Override: OPENBOT_DEVICE_SDK_ROOT=/path/to/openbot-device-sdk
+ *   import { createAudioBridgeFromVoiceEnv } from `<SDK_ROOT>/adapters/voice/src/reference/index.ts`
  *   (or re-export from adapters/voice)
  * - Default mock until OPENBOT_ASR_PROVIDER / OPENBOT_TTS_PROVIDER + URLs are set
  *

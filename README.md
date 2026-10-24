@@ -64,6 +64,18 @@ PR #17 没有改冻结字段名，也没有改 `/api/integrations/v1` 前缀。�
 
 `flash()` 和 `massFlash()` 一定会失败。这里不会生产烧录，也不会批量刷机，也不会把 `https://api.tenclass.net/xiaozhi/ota/` 当作本平台入口。
 
+## npm 包（P1-6 发布准备）
+
+私有包 `@flykingvip-cloud/openbot-device-sdk@0.1.0` → GitHub Packages。发布形态为编译后的 `dist/`（voice + 必要 metalio Opus 助手）。**本仓默认不执行真实 `npm publish`。** 详见 [docs/npm-publish.md](docs/npm-publish.md)。
+
+```bash
+npm run build:publish
+npm run pack:check
+npm run publish:dry-run
+```
+
+Agent B 安装包后用 `import { createAudioBridgeFromVoiceEnv } from "@flykingvip-cloud/openbot-device-sdk"`；`OPENBOT_DEVICE_SDK_ROOT` 仍可覆盖为本地 checkout。
+
 ## 开发
 
 ```bash

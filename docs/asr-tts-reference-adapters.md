@@ -38,6 +38,25 @@ rejects `opus-frame` by default; use `reference-http` or inject a real spoken `T
 
 ## Inject into OpenBot gateway (Agent B)
 
+**Preferred (P1-6):** install the private package (compiled `dist/`), see
+[npm-publish.md](npm-publish.md):
+
+```bash
+npm install @flykingvip-cloud/openbot-device-sdk@0.1.0
+```
+
+```ts
+import {
+  createAudioBridgeFromVoiceEnv,
+  createAudioBridge,
+  createReferenceHttpAsrProvider,
+  createReferenceHttpTtsProvider,
+} from "@flykingvip-cloud/openbot-device-sdk";
+```
+
+**Override / tip checkout:** `OPENBOT_DEVICE_SDK_ROOT` still works for strip-types
+on source (compat with pre-package wiring):
+
 1. Point the gateway at this checkout:
    ```bash
    export OPENBOT_DEVICE_SDK_ROOT="/Users/daniel/AI VP/openbot-device-sdk"
@@ -83,10 +102,11 @@ Reference HTTP shapes (for local wrappers you run yourself):
 ## Out of scope (later slices)
 
 - Edge auth proxy runnable path
-- Full voice harness / npm publish / firmware clear-queue
+- Firmware clear-queue / real npm publish (prep is in npm-publish.md; publish is gated)
 
 ## Related
 
+- [npm-publish.md](npm-publish.md) — private package install vs ROOT
 - [audio-bridge.md](audio-bridge.md)
 - [a2-metalio-voice.md](a2-metalio-voice.md)
 - [lab-voice.md](lab-voice.md)

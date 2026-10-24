@@ -49,5 +49,6 @@ import { createAudioBridgeFromVoiceEnv } from "../adapters/voice/src/index.ts";
 const bridge = createAudioBridgeFromVoiceEnv();
 ```
 
-Agent B: set `OPENBOT_DEVICE_SDK_ROOT` to this checkout, then import `createAudioBridge` /
-`createAudioBridgeFromVoiceEnv`. Product spoken TTS must **not** use `OpusFrameTtsProvider`.
+Agent B: prefer `import { createAudioBridge, createAudioBridgeFromVoiceEnv } from "@flykingvip-cloud/openbot-device-sdk"`
+(see [npm-publish.md](npm-publish.md)). `OPENBOT_DEVICE_SDK_ROOT` remains a checkout override.
+Product spoken TTS must **not** use `OpusFrameTtsProvider`.
