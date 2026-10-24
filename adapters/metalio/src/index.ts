@@ -92,6 +92,28 @@ export {
 } from "../../voice/src/index.ts";
 export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "../../voice/src/index.ts";
 export {
+  ASR_PROVIDER_ENV,
+  ASR_HTTP_URL_ENV,
+  TTS_PROVIDER_ENV,
+  TTS_HTTP_URL_ENV,
+  DEVICE_SDK_ROOT_ENV,
+  ReferenceHttpAsrProvider,
+  ReferenceHttpTtsProvider,
+  createAudioBridgeFromVoiceEnv,
+  createReferenceHttpAsrProvider,
+  createReferenceHttpTtsProvider,
+  createVoiceProvidersFromEnv,
+  readVoiceReferenceEnv,
+} from "../../voice/src/index.ts";
+export type {
+  AsrProviderKind,
+  ReferenceHttpAsrConfig,
+  ReferenceHttpTtsConfig,
+  TtsProviderKind,
+  VoiceProvidersBundle,
+  VoiceReferenceEnvSelection,
+} from "../../voice/src/index.ts";
+export {
   DEVICE_EDGE_DEVICE_ID_HEADER,
   DEVICE_EDGE_GRANT_HEADER,
   buildOpenBotServiceHeaders,

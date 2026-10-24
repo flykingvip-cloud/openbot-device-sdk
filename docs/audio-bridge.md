@@ -34,3 +34,18 @@ Optional `codec` / `format`: `"pcm" | "wav" | "opus"` (omit = pcm, backward comp
 - Device→edge auth: [docs/device-edge-auth.md](device-edge-auth.md)
 - Future voice E2E checklist: [docs/voice-longitudinal-harness.md](voice-longitudinal-harness.md)
 - HTTP compat smoke (not voice E2E): `npm run voice-joint` — [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)
+
+## Reference ASR/TTS inject (P1-1)
+
+Optional FunASR-/EdgeTTS-shaped HTTP adapters + env factory:
+[docs/asr-tts-reference-adapters.md](asr-tts-reference-adapters.md).
+
+```ts
+import { createAudioBridgeFromVoiceEnv } from "../adapters/voice/src/index.ts";
+// Default mock. Set OPENBOT_ASR_PROVIDER=reference-http + OPENBOT_ASR_HTTP_URL
+// (and TTS equivalents) to opt into HTTP reference providers — no vendor host hardcoded.
+const bridge = createAudioBridgeFromVoiceEnv();
+```
+
+Agent B: set `OPENBOT_DEVICE_SDK_ROOT` to this checkout, then import `createAudioBridge` /
+`createAudioBridgeFromVoiceEnv`. Product spoken TTS must **not** use `OpusFrameTtsProvider`.

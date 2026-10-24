@@ -24,3 +24,13 @@ TTS 下行采样率以 metalio **server hello** 为准（默认 24 kHz / mono / 
 - `resolveAsrAudio` — 整段入口规范化（WAV 头覆盖 sampleRate/channels）。
 
 设备能力矩阵（mic/storage/ble/usb/speaker 可选）与 metalio / record-card 槽位见 [docs/a5-device-capability-matrix.md](../../docs/a5-device-capability-matrix.md)。
+
+## 参考 ASR / TTS（P1-1）
+
+可选 FunASR / EdgeTTS **形态**的 HTTP 参考实现，见 `src/reference/` 与 [docs/asr-tts-reference-adapters.md](../../docs/asr-tts-reference-adapters.md)。
+
+- 默认仍是 `MockAsrProvider` / `MockTtsProvider`；不强制依赖 FunASR / EdgeTTS 运行时，不捆绑权重。
+- 厂商 URL、模型、voice、headers **全部**来自 env/config（`OPENBOT_ASR_HTTP_URL` 等），零硬编码。
+- Gateway 注入：`OPENBOT_DEVICE_SDK_ROOT` + `createAudioBridge` / `createAudioBridgeFromVoiceEnv`。
+- **产品播报勿用** `OpusFrameTtsProvider`（忽略 text）；用 `reference-http` 或自研 spoken `TtsProvider`。
+

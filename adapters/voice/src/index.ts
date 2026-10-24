@@ -53,3 +53,39 @@ export type {
   DeviceEdgeDeviceCredential,
   DeviceEdgeServiceCredential,
 } from "./device-edge-auth.ts";
+
+export {
+  ASR_HTTP_HEADERS_JSON_ENV,
+  ASR_HTTP_MODEL_ENV,
+  ASR_HTTP_TEXT_FIELD_ENV,
+  ASR_HTTP_URL_ENV,
+  ASR_PROVIDER_ENV,
+  DEVICE_SDK_ROOT_ENV,
+  TTS_HTTP_HEADERS_JSON_ENV,
+  TTS_HTTP_URL_ENV,
+  TTS_HTTP_VOICE_ENV,
+  TTS_PROVIDER_ENV,
+  TTS_SAMPLE_RATE_ENV,
+  ReferenceHttpAsrProvider,
+  ReferenceHttpTtsProvider,
+  createAsrProviderFromKind,
+  createAudioBridgeFromVoiceEnv,
+  createReferenceHttpAsrProvider,
+  createReferenceHttpTtsProvider,
+  createTtsProviderFromKind,
+  createVoiceProvidersFromEnv,
+  readVoiceReferenceEnv,
+} from "./reference/index.ts";
+export type {
+  AsrProviderKind,
+  CreateVoiceProvidersOptions,
+  FetchLike,
+  ReferenceHttpAsrConfig,
+  ReferenceHttpAsrProviderOptions,
+  ReferenceHttpTtsConfig,
+  ReferenceHttpTtsProviderOptions,
+  TtsProviderKind,
+  VoiceProvidersBundle,
+  VoiceReferenceEnvSelection,
+} from "./reference/index.ts";
+
