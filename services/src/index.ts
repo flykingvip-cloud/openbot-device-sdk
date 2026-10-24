@@ -133,3 +133,23 @@ export {
   voiceJointMissingEnv,
 } from "./voice-joint.ts";
 export type { VoiceJointCheck, VoiceJointOptions, VoiceJointReport } from "./voice-joint.ts";
+export {
+  FORBIDDEN_PASSTHROUGH_HINTS,
+  VOICE_HARNESS_ASSISTANT_DEFAULT,
+  VOICE_HARNESS_PENDING,
+  assertSpokenTtsProvider,
+  buildKnownWavFixture,
+  createMockAssistantDialogue,
+  createVoiceLongitudinalHarness,
+  formatVoiceHarnessReport,
+  runVoiceHarnessSim,
+} from "./voice-harness.ts";
+export type {
+  MockAssistantDialogue,
+  VoiceHarnessCheck,
+  VoiceHarnessLayer,
+  VoiceHarnessLayerStatus,
+  VoiceHarnessReport,
+  VoiceHarnessSimOptions,
+  VoiceLongitudinalHarness,
+} from "./voice-harness.ts";

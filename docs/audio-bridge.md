@@ -34,7 +34,7 @@ Optional `codec` / `format`: `"pcm" | "wav" | "opus"` (omit = pcm, backward comp
 
 - Providers: [docs/a2-metalio-voice.md](a2-metalio-voice.md), [docs/lab-voice.md](lab-voice.md)
 - Device→edge auth: [docs/device-edge-auth.md](device-edge-auth.md)
-- Future voice E2E checklist: [docs/voice-longitudinal-harness.md](voice-longitudinal-harness.md)
+- Longitudinal voice harness (sim runnable): [docs/voice-longitudinal-harness.md](voice-longitudinal-harness.md) — `npm run voice-harness:sim`
 - HTTP compat smoke (not voice E2E): `npm run voice-joint` — [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)
 
 ## Reference ASR/TTS inject (P1-1)

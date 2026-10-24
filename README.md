@@ -78,6 +78,8 @@ npm run sim-joint -- --help
 npm run voice -- --help
 npm run live-stub -- --help
 npm run voice-joint -- --help
+npm run voice-harness -- --help
+npm run voice-harness:sim
 ```
 
 控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。实验语音见 [docs/lab-voice.md](docs/lab-voice.md)。
@@ -88,7 +90,7 @@ Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL
 OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 ```
 
-步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。Claw4 gateway upload 对接（**不在** device-control / **不进** `npm run sim`）见 [docs/integration/claw4-gateway-upload.md](docs/integration/claw4-gateway-upload.md) 与 `npm run voice-joint`（HTTP compat smoke，不是 voice E2E；纵向清单见 [docs/voice-longitudinal-harness.md](docs/voice-longitudinal-harness.md)）。音频桥见 [docs/audio-bridge.md](docs/audio-bridge.md)。
+步骤和样例客户端环境变量见 [docs/live-stub.md](docs/live-stub.md)。设备控制 v1 和 OpenBot stub 的 sim 顺序见 [docs/integration/sim-joint-loopback.md](docs/integration/sim-joint-loopback.md)。`npm run sim-joint` 在凭证未设置时跳过，跳过不是通过。Claw4 gateway upload 对接（**不在** device-control / **不进** `npm run sim`）见 [docs/integration/claw4-gateway-upload.md](docs/integration/claw4-gateway-upload.md) 与 `npm run voice-joint`（HTTP compat smoke，不是 voice E2E）与 `npm run voice-harness` / `voice-harness:sim`（纵向 sim 层 harness，P1-5；见 [docs/voice-longitudinal-harness.md](docs/voice-longitudinal-harness.md)）。音频桥见 [docs/audio-bridge.md](docs/audio-bridge.md)。
 
 ## Agent A 验收还差什么
 
