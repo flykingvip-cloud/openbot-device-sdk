@@ -16,6 +16,10 @@ import type {
   AsrStreamResult,
   AsrTranscribeOptions,
 } from "../asr-provider.ts";
+import {
+  createOpusUplinkDecoder,
+  resolveAsrStreamCodec,
+} from "../opus-uplink.ts";
 import type { ReferenceHttpAsrConfig } from "./config.ts";
 
 export type FetchLike = typeof fetch;
@@ -40,8 +44,9 @@ function readTextField(body: unknown, field: string): string {
 }
 
 /**
- * Whole-utterance HTTP ASR. `stream()` is optional and not implemented here
- * (Opus→PCM / streaming FunASR remains a later slice).
+ * Whole-utterance HTTP ASR. `stream()` decodes codec:"opus" uplink packets to PCM
+ * (packet boundaries preserved), accumulates, then POSTs via transcribe. No FunASR
+ * weights bundled. A codec-aware streaming FunASR inject can replace this Provider.
  */
 export class ReferenceHttpAsrProvider implements AsrProvider {
   readonly url: string;
@@ -106,13 +111,40 @@ export class ReferenceHttpAsrProvider implements AsrProvider {
   }
 
   /**
-   * Streaming FunASR is out of scope for this reference slice.
-   * Callers needing stream() should inject a real streaming provider.
+   * Accumulate stream chunks; Opus packets are decoded to PCM first (never labeled PCM).
+   * Yields a single final after the iterable ends / endOfUtterance (HTTP is whole-utterance).
+   * Inject a codec-aware streaming FunASR Provider when true partials are required.
    */
-  async *stream(_chunks: AsyncIterable<AsrStreamChunk>): AsyncIterable<AsrStreamResult> {
-    throw new Error(
-      "ReferenceHttpAsrProvider.stream is not implemented; use MockAsrProvider or a streaming FunASR inject",
-    );
+  async *stream(chunks: AsyncIterable<AsrStreamChunk>): AsyncIterable<AsrStreamResult> {
+    const decoder = createOpusUplinkDecoder();
+    let pcmAcc = Buffer.alloc(0);
+    let sampleRate = decoder.sampleRate;
+    let channels = 1;
+    try {
+      for await (const chunk of chunks) {
+        const codec = resolveAsrStreamCodec(chunk);
+        if (chunk.sampleRate !== undefined) {
+          sampleRate = chunk.sampleRate as typeof sampleRate;
+        }
+        if (chunk.channels !== undefined) {
+          channels = chunk.channels;
+        }
+        if (chunk.data.byteLength > 0) {
+          if (codec === "opus") {
+            pcmAcc = Buffer.concat([pcmAcc, decoder.decodePacket(chunk.data)]);
+          } else {
+            pcmAcc = Buffer.concat([pcmAcc, chunk.data]);
+          }
+        }
+        if (chunk.endOfUtterance) {
+          break;
+        }
+      }
+      const text = await this.transcribe(pcmAcc, { sampleRate, channels, format: "pcm" });
+      yield { final: text };
+    } finally {
+      decoder.destroy();
+    }
   }
 }
 

@@ -1,6 +1,11 @@
 import { OPUS_PLACEHOLDER_MAGIC } from "../../metalio/src/opus-boundary.ts";
 import { resolveAsrAudio } from "./asr-audio.ts";
 import type { AsrProvider, AsrStreamChunk, AsrStreamResult, AsrTranscribeOptions } from "./asr-provider.ts";
+import {
+  createOpusUplinkDecoder,
+  resolveAsrStreamCodec,
+  type OpusUplinkDecoder,
+} from "./opus-uplink.ts";
 import type { TtsProvider, TtsSynthesizeOptions } from "./tts-provider.ts";
 
 /** Matches historical lab-voice finishUtterance / mockAsrTranscript behavior. */
@@ -44,6 +49,10 @@ function transcriptFromAudioBytes(audio: Buffer): string {
  * WAV headers supply sampleRate/channels via resolveAsrAudio (whole-utterance path).
  * stream() is a usable stub: yields partial after each chunk, final on endOfUtterance
  * or when the async iterable ends.
+ *
+ * P1-2: when codec/format is `"opus"`, each chunk is one uplink packet; packet
+ * boundaries are preserved and decoded to PCM via libopus before transcript rules.
+ * Undecodable stub bytes still must not be labeled or fed as PCM samples.
  */
 export class MockAsrProvider implements AsrProvider {
   async transcribe(audio: Buffer, options: AsrTranscribeOptions): Promise<string> {
@@ -56,39 +65,75 @@ export class MockAsrProvider implements AsrProvider {
   }
 
   async *stream(chunks: AsyncIterable<AsrStreamChunk>): AsyncIterable<AsrStreamResult> {
-    let acc = Buffer.alloc(0);
+    let accPcm = Buffer.alloc(0);
     let lastPartial = "";
     let sampleRate = 16_000;
     let channels = 1;
-    for await (const chunk of chunks) {
-      const codec = chunk.codec ?? chunk.format ?? "pcm";
-      // TODO(P1): when codec==="opus", decode packet-bounded Opus → PCM (or codec-aware Provider).
-      // Lab must not label Opus uplink as PCM; this stub concatenates bytes only for shape tests.
-      if (codec === "opus") {
-        // Accept shape; do not pretend Opus bytes are PCM samples.
+    let opusDecoder: OpusUplinkDecoder | undefined;
+    let sawOpus = false;
+    let undecodableOpusPackets = 0;
+
+    const ensureOpusDecoder = (): OpusUplinkDecoder => {
+      if (opusDecoder === undefined) {
+        opusDecoder = createOpusUplinkDecoder({
+          sampleRate: sampleRate === 24_000 ? 24_000 : 16_000,
+        });
       }
-      if (chunk.sampleRate !== undefined) {
-        sampleRate = chunk.sampleRate;
+      return opusDecoder;
+    };
+
+    try {
+      for await (const chunk of chunks) {
+        const codec = resolveAsrStreamCodec(chunk);
+        if (chunk.sampleRate !== undefined) {
+          sampleRate = chunk.sampleRate;
+        }
+        if (chunk.channels !== undefined) {
+          channels = chunk.channels;
+        }
+
+        if (codec === "opus") {
+          sawOpus = true;
+          // Never treat Opus packet bytes as PCM. Decode or count undecodable stubs.
+          if (chunk.data.byteLength > 0) {
+            try {
+              const pcm = ensureOpusDecoder().decodePacket(chunk.data);
+              if (pcm.byteLength > 0) {
+                accPcm = Buffer.concat([accPcm, pcm]);
+              }
+            } catch {
+              undecodableOpusPackets += 1;
+            }
+          }
+        } else if (chunk.data.byteLength > 0) {
+          accPcm = Buffer.concat([accPcm, chunk.data]);
+        }
+
+        const partial =
+          sawOpus && accPcm.byteLength === 0 && undecodableOpusPackets > 0
+            ? MOCK_ASR_DEFAULT_TRANSCRIPT
+            : await this.transcribe(accPcm, { sampleRate, channels, format: "pcm" });
+        if (partial !== lastPartial) {
+          lastPartial = partial;
+          yield { partial };
+        }
+        if (chunk.endOfUtterance) {
+          const finalText =
+            sawOpus && accPcm.byteLength === 0 && undecodableOpusPackets > 0
+              ? MOCK_ASR_DEFAULT_TRANSCRIPT
+              : await this.transcribe(accPcm, { sampleRate, channels, format: "pcm" });
+          yield { final: finalText };
+          return;
+        }
       }
-      if (chunk.channels !== undefined) {
-        channels = chunk.channels;
-      }
-      if (chunk.data.byteLength > 0) {
-        acc = Buffer.concat([acc, chunk.data]);
-      }
-      const partial = await this.transcribe(acc, { sampleRate, channels, format: "pcm" });
-      if (partial !== lastPartial) {
-        lastPartial = partial;
-        yield { partial };
-      }
-      if (chunk.endOfUtterance) {
-        const finalText = await this.transcribe(acc, { sampleRate, channels, format: "pcm" });
-        yield { final: finalText };
-        return;
-      }
+      const finalText =
+        sawOpus && accPcm.byteLength === 0 && undecodableOpusPackets > 0
+          ? MOCK_ASR_DEFAULT_TRANSCRIPT
+          : await this.transcribe(accPcm, { sampleRate, channels, format: "pcm" });
+      yield { final: finalText };
+    } finally {
+      opusDecoder?.destroy();
     }
-    const finalText = await this.transcribe(acc, { sampleRate, channels, format: "pcm" });
-    yield { final: finalText };
   }
 }
 

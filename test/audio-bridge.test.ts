@@ -3,9 +3,13 @@ import test from "node:test";
 
 import {
   SERVER_SAMPLE_RATE_DEFAULT,
+  UPLINK_SAMPLE_RATE,
+  createLibopusFrameEncoder,
   looksLikeRawOpusPacket,
+  pcmBytesPerFrame,
 } from "../adapters/metalio/src/index.ts";
 import {
+  MOCK_ASR_DEFAULT_TRANSCRIPT,
   MockAsrProvider,
   OpusFrameTtsProvider,
   ProportionalSilenceTtsProvider,
@@ -13,7 +17,9 @@ import {
   buildWavPcm,
   createAudioBridge,
   createMockAsrProvider,
+  createOpusUplinkDecoder,
   createProportionalSilenceTtsProvider,
+  wrapAsrProviderWithOpusDecode,
   type AsrProvider,
   type AsrStreamChunk,
   type TtsProvider,
@@ -132,11 +138,11 @@ test("OpusFrameTtsProvider ignores text (format/lab only); bridge docs require r
   lab.destroy();
 });
 
-test("AsrStreamChunk codec=opus shape is accepted by stream()", async () => {
+test("AsrStreamChunk codec=opus undecodable stub still yields final (not labeled PCM)", async () => {
   const asr = new MockAsrProvider();
   assert.ok(asr.stream);
   const chunk: AsrStreamChunk = {
-    data: Buffer.from([0xfc, 0x00, 0x01]), // opaque opus-shaped bytes (not decoded in P0)
+    data: Buffer.from([0xfc, 0x00, 0x01]), // opaque opus-shaped bytes
     codec: "opus",
     sampleRate: 16_000,
     channels: 1,
@@ -155,6 +161,93 @@ test("AsrStreamChunk codec=opus shape is accepted by stream()", async () => {
     }
   }
   assert.ok(results.some((r) => r.kind === "final"));
+  assert.equal(results.find((r) => r.kind === "final")?.text, MOCK_ASR_DEFAULT_TRANSCRIPT);
+});
+
+test("P1-2: Opus uplink packets decode to PCM then stream final", async () => {
+  const encoder = createLibopusFrameEncoder({ sampleRate: UPLINK_SAMPLE_RATE });
+  const frameBytes = pcmBytesPerFrame(UPLINK_SAMPLE_RATE);
+  const packets: Buffer[] = [];
+  for (let i = 0; i < 2; i += 1) {
+    packets.push(encoder.encodeFrame(Buffer.alloc(frameBytes)));
+  }
+  encoder.destroy?.();
+  assert.ok(packets.every((p) => looksLikeRawOpusPacket(p)));
+
+  const asr = new MockAsrProvider();
+  const results: Array<{ kind: string; text: string }> = [];
+  for await (const item of asr.stream!(
+    (async function* () {
+      for (let i = 0; i < packets.length; i += 1) {
+        yield {
+          data: packets[i]!,
+          codec: "opus" as const,
+          format: "opus" as const,
+          sampleRate: UPLINK_SAMPLE_RATE,
+          channels: 1,
+          endOfUtterance: i === packets.length - 1,
+        };
+      }
+    })(),
+  )) {
+    if ("final" in item && item.final !== undefined) {
+      results.push({ kind: "final", text: item.final });
+    } else if ("partial" in item) {
+      results.push({ kind: "partial", text: item.partial });
+    }
+  }
+  assert.ok(results.some((r) => r.kind === "final"));
+  assert.equal(results.find((r) => r.kind === "final")?.text, MOCK_ASR_DEFAULT_TRANSCRIPT);
+
+  // Decoder helper round-trip: packet -> PCM length matches one uplink frame.
+  const decoder = createOpusUplinkDecoder({ sampleRate: UPLINK_SAMPLE_RATE });
+  const pcm = decoder.decodePacket(packets[0]!);
+  assert.equal(pcm.byteLength, frameBytes);
+  decoder.destroy();
+});
+
+test("P1-2: wrapAsrProviderWithOpusDecode feeds PCM to inner stream", async () => {
+  const encoder = createLibopusFrameEncoder({ sampleRate: UPLINK_SAMPLE_RATE });
+  const frameBytes = pcmBytesPerFrame(UPLINK_SAMPLE_RATE);
+  const packet = encoder.encodeFrame(Buffer.alloc(frameBytes));
+  encoder.destroy?.();
+
+  const seenCodecs: string[] = [];
+  const seenPcmBytes: number[] = [];
+  const inner: AsrProvider = {
+    async transcribe() {
+      return "inner-transcribe";
+    },
+    async *stream(chunks) {
+      for await (const chunk of chunks) {
+        seenCodecs.push(chunk.codec ?? chunk.format ?? "pcm");
+        seenPcmBytes.push(chunk.data.byteLength);
+        if (chunk.endOfUtterance) {
+          yield { final: "from-inner-stream" };
+        }
+      }
+    },
+  };
+  const wrapped = wrapAsrProviderWithOpusDecode(inner, { sampleRate: UPLINK_SAMPLE_RATE });
+  let finalText = "";
+  for await (const item of wrapped.stream!({
+    async *[Symbol.asyncIterator]() {
+      yield {
+        data: packet,
+        codec: "opus",
+        sampleRate: UPLINK_SAMPLE_RATE,
+        channels: 1,
+        endOfUtterance: true,
+      };
+    },
+  })) {
+    if ("final" in item && item.final !== undefined) {
+      finalText = item.final;
+    }
+  }
+  assert.equal(finalText, "from-inner-stream");
+  assert.deepEqual(seenCodecs, ["pcm"]);
+  assert.equal(seenPcmBytes[0], frameBytes);
 });
 
 test("device-edge auth sketch builds OpenBot service headers without device Basic", () => {
@@ -166,15 +259,3 @@ test("device-edge auth sketch builds OpenBot service headers without device Basi
   assert.equal(headers["X-OpenBot-Grant-Credential"], "grant-xyz");
   assert.equal(headers["X-Device-Id"], "dev-1");
 });
-
-/**
- * P1 gap marker: full Opus uplink decode-to-PCM is not wired.
- * Keep as skipped so CI stays green while documenting the contract hole.
- */
-test(
-  "TODO(P1): Opus uplink decode-to-PCM or codec-aware Provider",
-  { skip: "P0 types+docs+shape only; decode wiring deferred" },
-  async () => {
-    assert.fail("implement Opus→PCM before enabling");
-  },
-);

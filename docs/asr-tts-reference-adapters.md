@@ -76,10 +76,12 @@ Reference HTTP shapes (for local wrappers you run yourself):
 - **ASR:** `POST` body = WAV or PCM bytes; query may include `model`, `sampleRate`, `channels`, `format`; response JSON `{ "text": "…" }` (field configurable).
 - **TTS:** `POST` JSON `{ "text", "sampleRate", "voice?" }`; response = mono 16-bit WAV **or** raw s16le PCM at the requested sample rate; SDK encodes 60 ms Opus frames.
 
+## Uplink stream (P1-2)
+
+`ReferenceHttpAsrProvider.stream()` decodes `codec:"opus"` packets to PCM (boundaries preserved), accumulates, then POSTs via `transcribe`. For true streaming partials / codec-aware FunASR, inject your own Provider (do not wrap with `wrapAsrProviderWithOpusDecode` if it already consumes Opus).
+
 ## Out of scope (later slices)
 
-- Opus uplink → PCM decode
-- Streaming FunASR `stream()`
 - Edge auth proxy runnable path
 - Full voice harness / npm publish / firmware clear-queue
 

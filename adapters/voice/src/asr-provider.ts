@@ -7,7 +7,8 @@
  * - Whole-utterance: WAV/PCM buffer → transcribe (WAV sampleRate/channels from header).
  * - Streaming: WS uplink chunks → stream() partial/final (stub usable in lab; real providers inject).
  *   Chunks may carry optional codec/format (`pcm`|`wav`|`opus`). Opus uplink must keep packet
- *   boundaries; lab must not label Opus as PCM. Full Opus→PCM decode is TODO/P1.
+ *   boundaries; lab must not label Opus as PCM. P1-2: decode Opus to PCM in Mock/reference
+ *   stream (or inject a codec-aware Provider that consumes packet boundaries directly).
  */
 
 export type AsrAudioFormat = "pcm" | "wav";
@@ -16,8 +17,8 @@ export type AsrAudioFormat = "pcm" | "wav";
  * Optional uplink codec hint on streaming chunks (and docs for lab).
  * - pcm / wav: existing paths; wav is unusual mid-stream.
  * - opus: packet boundaries must be preserved; lab must NOT label Opus uplink as PCM.
- *   Full decode-to-PCM (or a codec-aware Provider) is P1 — see TODO in MockAsrProvider.stream
- *   and test/audio-bridge.test.ts.
+ *   Mock/reference stream decode Opus to PCM via libopus; or inject a codec-aware Provider
+ *   (see wrapAsrProviderWithOpusDecode; do not wrap codec-aware injects).
  */
 export type AsrUplinkCodec = "pcm" | "wav" | "opus";
 
@@ -58,8 +59,8 @@ export interface AsrStreamChunk {
   channels?: number;
   /**
    * Optional uplink codec/format. Defaults to pcm when omitted (backward compatible).
-   * When "opus", `data` is one (or more) raw Opus packets with preserved boundaries —
-   * do not treat bytes as PCM. Decode-to-PCM wiring may be stubbed until P1.
+   * When "opus", `data` is one raw Opus packet with a preserved boundary —
+   * do not treat bytes as PCM. Providers either decode to PCM or consume Opus directly.
    */
   codec?: AsrUplinkCodec;
   /** Alias for codec; prefer codec. Kept so callers can say format:"opus". */

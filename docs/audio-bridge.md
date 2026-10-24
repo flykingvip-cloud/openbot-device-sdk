@@ -20,13 +20,15 @@ Providers stay injectable. This SDK does not ship FunASR / EdgeTTS weights.
 
 For tests that need the path wired without a vendor, use `ProportionalSilenceTtsProvider`: silence PCM whose **length is proportional to text** (not a fixed tone pretending to be speech), then the existing `OpusFrameEncoder` path.
 
-## Uplink Opus (`AsrStreamChunk`)
+## Uplink Opus (`AsrStreamChunk`) — P1-2
 
 Optional `codec` / `format`: `"pcm" | "wav" | "opus"` (omit = pcm, backward compatible).
 
 - Lab must **not** label Opus uplink as PCM.
-- Packet boundaries must be preserved.
-- Decode-to-PCM or a codec-aware Provider is **P1** (TODO in `MockAsrProvider.stream`). P0 adds types, docs, and a unit test that `stream()` accepts `codec: "opus"` chunk shape.
+- Packet boundaries must be preserved (one WS binary frame ≈ one Opus packet).
+- **Mock / reference** `stream()` decode Opus → PCM via libopus (`createOpusUplinkDecoder`), then run existing PCM ASR rules.
+- **Codec-aware Provider:** inject a Provider that reads `codec: "opus"` directly. Do **not** wrap it with `wrapAsrProviderWithOpusDecode` (that helper is only for PCM-only Providers).
+- Lab `finishUtterance` calls `asrProvider.stream()` for packetized uplink (WAV whole-file still uses `transcribe`).
 
 ## Related
 

@@ -89,6 +89,17 @@ export {
   mockAsrTranscript,
   parseWavPcm,
   resolveAsrAudio,
+  createOpusUplinkDecoder,
+  finalTranscriptFromStream,
+  packetsToAsrStreamChunks,
+  resolveAsrStreamCodec,
+  uplinkPacketsLookLikeOpus,
+  wrapAsrProviderWithOpusDecode,
+} from "../../voice/src/index.ts";
+export type {
+  CreateOpusUplinkDecoderOptions,
+  OpusUplinkDecoder,
+  WrapAsrProviderWithOpusDecodeOptions,
 } from "../../voice/src/index.ts";
 export type { OpusFrameTtsProviderOptions, OpusTtsPcmMode } from "../../voice/src/index.ts";
 export {
