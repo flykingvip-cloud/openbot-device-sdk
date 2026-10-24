@@ -60,12 +60,18 @@ export type {
 export {
   DEVICE_EDGE_DEVICE_ID_HEADER,
   DEVICE_EDGE_GRANT_HEADER,
+  LabDeviceEdgeAuthProxy,
   buildOpenBotServiceHeaders,
+  createAssessingDeviceVerifier,
+  createTokenMapDeviceVerifier,
 } from "./device-edge-auth.ts";
 export type {
   DeviceEdgeAuthProxy,
+  DeviceEdgeAuthorizeResult,
   DeviceEdgeDeviceCredential,
   DeviceEdgeServiceCredential,
+  DeviceEdgeVerifyFn,
+  LabDeviceEdgeAuthProxyOptions,
 } from "./device-edge-auth.ts";
 
 export {
