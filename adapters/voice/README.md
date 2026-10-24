@@ -38,6 +38,6 @@ TTS 下行采样率以 metalio **server hello** 为准（默认 24 kHz / mono / 
 
 - 默认仍是 `MockAsrProvider` / `MockTtsProvider`；不强制依赖 FunASR / EdgeTTS 运行时，不捆绑权重。
 - 厂商 URL、模型、voice、headers **全部**来自 env/config（`OPENBOT_ASR_HTTP_URL` 等），零硬编码。
-- Gateway 注入：`OPENBOT_DEVICE_SDK_ROOT` + `createAudioBridge` / `createAudioBridgeFromVoiceEnv`。
+- Gateway 注入：优先 `@flykingvip-cloud/openbot-device-sdk`（见 `docs/npm-publish.md`）；`OPENBOT_DEVICE_SDK_ROOT` 仍可作 checkout 覆盖 + `createAudioBridge` / `createAudioBridgeFromVoiceEnv`。
 - **产品播报勿用** `OpusFrameTtsProvider`（忽略 text）；用 `reference-http` 或自研 spoken `TtsProvider`。
 

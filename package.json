@@ -1,15 +1,45 @@
 {
-  "name": "openbot-device-sdk",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@flykingvip-cloud/openbot-device-sdk",
+  "version": "0.1.0",
   "description": "Agent A device platform: Metalio voice adapter, device tools/media, and a lab-only claim/bind/OTA control plane.",
   "type": "module",
   "engines": {
     "node": ">=22.18"
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./voice": {
+      "types": "./dist/voice/index.d.ts",
+      "import": "./dist/voice/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "docs/npm-publish.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flykingvip-cloud/openbot-device-sdk.git"
+  },
   "scripts": {
     "test": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
+    "build:publish": "node scripts/build-voice-dist.mjs",
+    "prepack": "npm run build:publish",
+    "pack:check": "node scripts/pack-check.mjs",
+    "publish:dry-run": "npm publish --dry-run",
     "console": "node --disable-warning=ExperimentalWarning --experimental-strip-types console/src/cli.ts",
     "sim": "node --disable-warning=ExperimentalWarning --experimental-strip-types simulator/src/cli.ts",
     "ota-config": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/ota-config-cli.ts",
