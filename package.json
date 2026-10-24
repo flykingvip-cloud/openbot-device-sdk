@@ -18,6 +18,7 @@
     "voice": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/lab-voice-cli.ts",
     "live-stub": "node --disable-warning=ExperimentalWarning --experimental-strip-types integrations/openbot-live/src/cli.ts",
     "voice-joint": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/voice-joint-cli.ts",
+    "device-edge-auth": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/device-edge-auth-proxy-cli.ts",
     "voice-harness": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/voice-harness-cli.ts",
     "voice-harness:sim": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/voice-harness-cli.ts --sim"
   },

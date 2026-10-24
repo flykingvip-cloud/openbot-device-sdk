@@ -80,6 +80,9 @@ export {
   createVoiceProvidersFromEnv,
   readVoiceReferenceEnv,
   buildOpenBotServiceHeaders,
+  LabDeviceEdgeAuthProxy,
+  createAssessingDeviceVerifier,
+  createTokenMapDeviceVerifier,
   ASR_PROVIDER_ENV,
   ASR_HTTP_URL_ENV,
   TTS_PROVIDER_ENV,
@@ -153,3 +156,19 @@ export type {
   VoiceHarnessSimOptions,
   VoiceLongitudinalHarness,
 } from "./voice-harness.ts";
+
+export {
+  DEVICE_EDGE_AUTH_PROXY_ENV,
+  DEVICE_EDGE_PROXY_PREFIX,
+  assertLoopbackUpstreamUrl,
+  createLabDeviceEdgeAuthProxyFromEnv,
+  labSmokeServiceCredential,
+  parseLabTokenMap,
+  serviceCredentialFromEnv,
+  startDeviceEdgeAuthProxyServer,
+} from "./device-edge-auth-proxy.ts";
+export type {
+  DeviceEdgeAuthProxyServer,
+  DeviceEdgeUpstreamHit,
+  StartDeviceEdgeAuthProxyOptions,
+} from "./device-edge-auth-proxy.ts";
