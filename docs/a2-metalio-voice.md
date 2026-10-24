@@ -97,3 +97,9 @@ Injectable `createAudioBridge` (`adapters/voice`): `wavBytes → AsrProvider.tra
 `OpusFrameTtsProvider` 仍是 lab/格式路径（忽略 text）。桥接侧 spoken TTS 须注入真 `TtsProvider`；测试可用 `ProportionalSilenceTtsProvider`（静音长度 ∝ 文本）。
 
 `AsrStreamChunk` 可选 `codec`/`format`: `pcm`|`wav`|`opus`。Lab **不得**把 Opus 上行标成 PCM；包边界保留。Opus→PCM 解码接线标为 P1 TODO。
+
+## Reference adapters (P1-1)
+
+Optional HTTP reference providers (FunASR-/EdgeTTS-shaped) live under
+`adapters/voice/src/reference/` — config/env only, default still mock. See
+[asr-tts-reference-adapters.md](asr-tts-reference-adapters.md).
