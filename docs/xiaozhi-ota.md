@@ -4,6 +4,8 @@
 已绑定设备由本进程 **in-process** 调用 `ControlPlane.issueConnectionCredential` 签发短时裸 token；
 语音 WebSocket 协议仍走现有 `npm run voice` / `npm run claw4-lab`，本端点只负责下发可达的 `websocket.url` + `token` + `server_time`。
 
+远端测试者（真机不在本机）逐步清单见 [xiaozhi-ota-remote-tester.md](./xiaozhi-ota-remote-tester.md)。
+
 ## 推荐：联合启动（同一 ControlPlane）
 
 OTA 签发的 token 必须与 lab-voice 校验共用同一份 sqlite。拆开两个默认库会导致「OTA 有 token、WS 仍 401」。

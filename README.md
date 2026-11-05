@@ -124,6 +124,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 - [docs/a4-claim-bind-ota.md](docs/a4-claim-bind-ota.md)
 - [docs/lab-ota-config.md](docs/lab-ota-config.md)
 - [docs/xiaozhi-ota.md](docs/xiaozhi-ota.md)
+- [docs/xiaozhi-ota-remote-tester.md](docs/xiaozhi-ota-remote-tester.md)
 - [docs/lab-voice.md](docs/lab-voice.md)
 - [docs/lab-camera.md](docs/lab-camera.md)
 - [docs/live-stub.md](docs/live-stub.md)
