@@ -8,6 +8,13 @@
 
 公网 lab（HK）：OTA `https://device-lab.openbot.love/xiaozhi/ota/`，voice `wss://device-lab.openbot.love/`（独立 vhost，非 www/gw）。
 
+
+## 真机联调注意（唤醒 / token）
+
+- MetalioClaw4 tip 默认 **Disabling wake word detection**；须触摸点亮并进入 **「聊天」App** 才会建 WS，不能靠喊名字。
+- 语音 WS 是短时按需连接，聊完可能断开；**在线以 OTA 请求为准**，不要只盯常连 WS。
+- 每次 `POST /xiaozhi/ota/` 都会重新 `issueConnectionCredential`。联调时**不要**对已绑定 MAC 随意 curl OTA，否则会顶掉设备手里的 token（设备端表现为鉴权失败、需再进 App / 再拉 OTA）。
+
 ## 推荐：联合启动（同一 ControlPlane）
 
 OTA 签发的 token 必须与 lab-voice 校验共用同一份 sqlite。拆开两个默认库会导致「OTA 有 token、WS 仍 401」。

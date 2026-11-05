@@ -1,6 +1,7 @@
 import { OPENBOT_CONTRACT_SHA } from "../../contracts/src/index.ts";
 import { ensureLabDeviceBound } from "./claw4-lab.ts";
 import { ControlPlane } from "./control-plane.ts";
+import { createVoiceProvidersFromEnv } from "../../adapters/voice/src/index.ts";
 import { startLabVoiceServer } from "./lab-voice.ts";
 import { openStaging } from "./staging-db.ts";
 import {
@@ -33,8 +34,14 @@ function main(): void {
     );
   }
 
+  const voiceProviders = createVoiceProvidersFromEnv({ env: process.env });
   void Promise.all([
-    startLabVoiceServer(plane, { host: args.voiceHost, port: args.voicePort }),
+    startLabVoiceServer(plane, {
+      host: args.voiceHost,
+      port: args.voicePort,
+      asrProvider: voiceProviders.asr,
+      ttsProvider: voiceProviders.tts,
+    }),
     startXiaozhiOtaServer(plane, {
       host: args.otaHost,
       port: args.otaPort,
@@ -167,6 +174,9 @@ function helpText(): string {
     "  固件 tip 3d12a6ea 无「服务器地址」UI；用 NVS 写 wifi/ota_url 后断电重启",
     "  设备与本机须同局域网；确认网络切换为 WiFi 而非 4G",
     "  WS 握手须带 Client-Id（UUID）；缺了 lab-voice 会 400",
+    "  TTS 默认 mock 占位；可设 OPENBOT_TTS_PROVIDER=proportional-silence|reference-http（后者要 OPENBOT_TTS_HTTP_URL）",
+    "  无 live stub 时设 OPENBOT_DEVICE_DH_TEST_MODE=1 才会 sim 回复并走 TTS",
+    "  联调勿对已绑定 MAC 乱 curl OTA，会顶掉设备 token；唤醒默认关，须点进「聊天」App",
   ].join("\n");
 }
 
