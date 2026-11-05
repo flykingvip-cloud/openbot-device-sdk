@@ -297,6 +297,15 @@ async function handleRequest(
   if (contentType !== undefined) {
     upstreamHeaders.set("content-type", contentType);
   }
+  // Lab hop: forward request headers the stub requires beyond service auth.
+  const idempotencyKey = headerValue(req, "idempotency-key");
+  if (idempotencyKey !== undefined) {
+    upstreamHeaders.set("idempotency-key", idempotencyKey);
+  }
+  const accept = headerValue(req, "accept");
+  if (accept !== undefined) {
+    upstreamHeaders.set("accept", accept);
+  }
 
   const method = req.method ?? "GET";
   const init: RequestInit = {
