@@ -52,6 +52,7 @@ function main(): void {
       process.stdout.write(
         [
           `Claw4 lab joint（同一 ControlPlane）`,
+          `ASR/TTS: ${voiceProviders.asrKind} / ${voiceProviders.ttsKind}`,
           `状态: ${args.statePath}`,
           `合约针: ${OPENBOT_CONTRACT_SHA}`,
           `语音监听: ${voice.url}  （设备应连 advertise: ${voiceWsUrl}）`,

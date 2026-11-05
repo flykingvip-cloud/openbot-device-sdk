@@ -160,3 +160,13 @@ npm run claw4-lab -- \
 - 用 Cloudflare Tunnel / frp / 已有反代时，OTA 与 voice 路径按反代实际对外 URL 发给测试者。  
 - TLS：若只开 `wss`，设备时钟依赖 OTA 里的 `server_time`；不要省略。  
 - 协议细节与本地自测见 [xiaozhi-ota.md](./xiaozhi-ota.md)。
+
+
+## 验喇叭与多轮（lab）
+
+HK lab 可开：
+
+- `OPENBOT_DEVICE_DH_TEST_MODE=1`：无 live stub 时走 **sim** 多轮（`dialogue: sim`），每轮 TTS 播识别文本
+- `OPENBOT_TTS_PROVIDER=reference-http` + `OPENBOT_TTS_HTTP_URL=http://127.0.0.1:8800/tts`（本机 `ops/lab-edgetts`）
+
+这是喇叭与会话生命周期验收，**不是** OpenBot 生产对话。真 ASR 需另配 FunASR HTTP；真助手需配 live stub。
