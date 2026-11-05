@@ -34,6 +34,7 @@ function main(): void {
           "未绑定/已吊销仍返回 200 + activation，不返回 mqtt / firmware",
           "websocket.url 必须是设备可达地址，不要填 0.0.0.0 监听返回的 127.0.0.1",
           "注意：device-control 与 lab-voice 默认都是 8791，请错开端口",
+          "与 lab-voice 联调请共用 --state（或 npm run claw4-lab）；拆开两个默认 sqlite 会导致 WS 401",
           "本进程与 lab ota-config（loopback LabDeviceConfig）并存，路径不同",
           "",
         ].join("\n"),
@@ -94,7 +95,15 @@ function parseArgs(argv: string[]): {
     throw new Error(`未知参数: ${arg ?? ""}`);
   }
   const parsed = parseListen(listen);
-  return { statePath, host: parsed.host, port: parsed.port, voiceWsUrl, help };
+  const result: {
+    statePath: string;
+    host: string;
+    port: number;
+    voiceWsUrl?: string;
+    help: boolean;
+  } = { statePath, host: parsed.host, port: parsed.port, help };
+  if (voiceWsUrl !== undefined) result.voiceWsUrl = voiceWsUrl;
+  return result;
 }
 
 function parseListen(value: string): { host: string; port: number } {

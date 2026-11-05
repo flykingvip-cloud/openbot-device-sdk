@@ -51,7 +51,8 @@
     "device-edge-auth": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/device-edge-auth-proxy-cli.ts",
     "voice-harness": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/voice-harness-cli.ts",
     "voice-harness:sim": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/voice-harness-cli.ts --sim",
-    "xiaozhi-ota": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/xiaozhi-ota-cli.ts"
+    "xiaozhi-ota": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/xiaozhi-ota-cli.ts",
+    "claw4-lab": "node --disable-warning=ExperimentalWarning --experimental-strip-types services/src/claw4-lab-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",

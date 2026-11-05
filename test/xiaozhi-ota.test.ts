@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ControlPlane } from "../services/src/index.ts";
+import { ensureLabDeviceBound } from "../services/src/claw4-lab.ts";
 import {
   assertDeviceReachableVoiceUrl,
   buildXiaozhiOtaResponse,
+  formatXiaozhiOtaLog,
   resolveXiaozhiVoiceWsUrl,
   startXiaozhiOtaServer,
+  type XiaozhiOtaRequestLog,
 } from "../services/src/xiaozhi-ota.ts";
 
 const ASSISTANT = { voiceId: "voice-lab" };
@@ -118,4 +121,56 @@ test("HTTP: missing Device-Id is 400; bound POST returns Xiaozhi JSON", async ()
   } finally {
     await listening.close();
   }
+});
+
+test("HTTP logs Device-Id Client-Id UA and issued token", async () => {
+  const control = plane();
+  claimAndBind(control);
+  const logs: XiaozhiOtaRequestLog[] = [];
+  const listening = await startXiaozhiOtaServer(control, {
+    host: "127.0.0.1",
+    port: 0,
+    voiceWsUrl: VOICE,
+    onRequestLog: (entry) => {
+      logs.push(entry);
+    },
+  });
+  try {
+    const ok = await fetch(`${listening.url}/xiaozhi/ota/`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Device-Id": "80:f1:b2:d2:eb:fb",
+        "Client-Id": "11111111-1111-1111-1111-111111111111",
+        "User-Agent": "claw4-test/1",
+      },
+      body: JSON.stringify({ mac_address: "80:f1:b2:d2:eb:fb", application: { name: "xiaozhi" } }),
+    });
+    assert.equal(ok.status, 200);
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0]?.deviceId, "80:f1:b2:d2:eb:fb");
+    assert.equal(logs[0]?.clientId, "11111111-1111-1111-1111-111111111111");
+    assert.equal(logs[0]?.userAgent, "claw4-test/1");
+    assert.equal(logs[0]?.tokenPresent, true);
+    assert.equal(logs[0]?.unbound, false);
+    assert.match(logs[0]?.bodyPreview ?? "", /mac_address/);
+    const line = formatXiaozhiOtaLog(logs[0]!, new Date(2026, 10, 5, 9, 1, 2));
+    assert.match(line, /deviceId=80:f1:b2:d2:eb:fb/);
+    assert.match(line, /token=\(issued\)/);
+  } finally {
+    await listening.close();
+  }
+});
+
+test("ensureLabDeviceBound creates then reuses binding", () => {
+  const control = plane();
+  const first = ensureLabDeviceBound(control, "80:f1:b2:d2:eb:fb");
+  assert.equal(first.created, true);
+  assert.match(first.authorizationRef, /^aref_/);
+  const second = ensureLabDeviceBound(control, "80:f1:b2:d2:eb:fb");
+  assert.equal(second.created, false);
+  assert.equal(second.authorizationRef, first.authorizationRef);
+  assert.equal(second.bindingVersion, first.bindingVersion);
+  const body = buildXiaozhiOtaResponse(control, "80:f1:b2:d2:eb:fb", VOICE);
+  assert.equal(body.websocket.token.length > 0, true);
 });

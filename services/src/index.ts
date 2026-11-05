@@ -178,15 +178,20 @@ export {
   XIAOZHI_VOICE_WS_ENV,
   assertDeviceReachableVoiceUrl,
   buildXiaozhiOtaResponse,
+  formatXiaozhiOtaLog,
   handleXiaozhiOtaRequest,
   resolveXiaozhiVoiceWsUrl,
   startXiaozhiOtaServer,
 } from "./xiaozhi-ota.ts";
 export type {
   XiaozhiActivation,
+  XiaozhiOtaRequestLog,
   XiaozhiOtaResponse,
   XiaozhiOtaServer,
   XiaozhiOtaServerOptions,
   XiaozhiServerTime,
   XiaozhiWebsocketConfig,
 } from "./xiaozhi-ota.ts";
+
+export { ensureLabDeviceBound } from "./claw4-lab.ts";
+export type { EnsureLabDeviceBoundResult } from "./claw4-lab.ts";

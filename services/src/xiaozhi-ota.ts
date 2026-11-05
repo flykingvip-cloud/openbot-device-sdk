@@ -39,6 +39,18 @@ export interface XiaozhiOtaResponse {
   activation?: XiaozhiActivation;
 }
 
+export interface XiaozhiOtaRequestLog {
+  method: string;
+  path: string;
+  deviceId: string;
+  clientId: string;
+  userAgent: string;
+  bodyPreview: string;
+  voiceWsUrl: string;
+  tokenPresent: boolean;
+  unbound: boolean;
+}
+
 export interface XiaozhiOtaServerOptions {
   host: string;
   port: number;
@@ -46,6 +58,8 @@ export interface XiaozhiOtaServerOptions {
   voiceWsUrl: string;
   env?: NodeJS.ProcessEnv;
   timezoneOffsetMin?: number;
+  /** Optional request logger (defaults to stderr lines matching claw4 bring-up format). */
+  onRequestLog?: (entry: XiaozhiOtaRequestLog) => void;
 }
 
 export interface XiaozhiOtaServer {
@@ -146,11 +160,19 @@ export function startXiaozhiOtaServer(
   }
 
   return new Promise((resolve, reject) => {
+    const requestOptions: {
+      voiceWsUrl: string;
+      timezoneOffsetMin: number;
+      onRequestLog?: (entry: XiaozhiOtaRequestLog) => void;
+    } = {
+      voiceWsUrl,
+      timezoneOffsetMin,
+    };
+    if (options.onRequestLog !== undefined) {
+      requestOptions.onRequestLog = options.onRequestLog;
+    }
     const server = createServer((req, res) => {
-      void handleXiaozhiOtaRequest(plane, req, res, {
-        voiceWsUrl,
-        timezoneOffsetMin,
-      }).catch(() => {
+      void handleXiaozhiOtaRequest(plane, req, res, requestOptions).catch(() => {
         if (!res.headersSent) {
           writeJson(res, 500, { error: "internal" });
         }
@@ -174,11 +196,29 @@ export function startXiaozhiOtaServer(
   });
 }
 
+export function formatXiaozhiOtaLog(entry: XiaozhiOtaRequestLog, at: Date = new Date()): string {
+  const hh = String(at.getHours()).padStart(2, "0");
+  const mm = String(at.getMinutes()).padStart(2, "0");
+  const ss = String(at.getSeconds()).padStart(2, "0");
+  const tokenNote = entry.tokenPresent ? "(issued)" : "(empty)";
+  return [
+    `[${hh}:${mm}:${ss}] OTA ${entry.method} from deviceId=${entry.deviceId || "(none)"}`,
+    `\tclientId=${entry.clientId || "(none)"}`,
+    `\tUA=${entry.userAgent || "(none)"}`,
+    `\t-> ws=${entry.voiceWsUrl} token=${tokenNote}${entry.unbound ? " unbound" : ""}`,
+  ].join("\n");
+}
+
 export async function handleXiaozhiOtaRequest(
   plane: ControlPlane,
   req: IncomingMessage,
   res: ServerResponse,
-  options: { voiceWsUrl: string; timezoneOffsetMin?: number; now?: () => number },
+  options: {
+    voiceWsUrl: string;
+    timezoneOffsetMin?: number;
+    now?: () => number;
+    onRequestLog?: (entry: XiaozhiOtaRequestLog) => void;
+  },
 ): Promise<void> {
   const host = req.headers.host ?? "127.0.0.1";
   let pathname = "/";
@@ -210,17 +250,40 @@ export async function handleXiaozhiOtaRequest(
     return;
   }
 
-  await drainBody(req);
+  const rawBody = await readBody(req);
 
-  const deviceId = headerValue(req, "device-id");
-  if (deviceId === undefined || !DEVICE_ID.test(deviceId)) {
+  const deviceId = headerValue(req, "device-id") ?? "";
+  const clientId = headerValue(req, "client-id") ?? "";
+  const userAgent = headerValue(req, "user-agent") ?? "";
+  if (deviceId.length === 0 || !DEVICE_ID.test(deviceId)) {
     writeJson(res, 400, { error: "device_id" });
     return;
   }
 
-  const body = buildXiaozhiOtaResponse(plane, deviceId, options.voiceWsUrl, {
-    now: options.now,
+  const buildOptions: { now?: () => number; timezoneOffsetMin?: number } = {
     timezoneOffsetMin: options.timezoneOffsetMin ?? 480,
+  };
+  if (options.now !== undefined) {
+    buildOptions.now = options.now;
+  }
+  const body = buildXiaozhiOtaResponse(plane, deviceId, options.voiceWsUrl, buildOptions);
+  const unbound = body.activation !== undefined;
+  const tokenPresent = body.websocket.token.length > 0;
+  const logger =
+    options.onRequestLog ??
+    ((entry: XiaozhiOtaRequestLog) => {
+      process.stderr.write(`${formatXiaozhiOtaLog(entry)}\n`);
+    });
+  logger({
+    method: req.method ?? "POST",
+    path: pathname,
+    deviceId,
+    clientId,
+    userAgent,
+    bodyPreview: rawBody.slice(0, 512),
+    voiceWsUrl: options.voiceWsUrl,
+    tokenPresent,
+    unbound,
   });
 
   // Hard guard: never emit mqtt or firmware keys.
@@ -235,12 +298,28 @@ function headerValue(req: IncomingMessage, name: string): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function drainBody(req: IncomingMessage): Promise<void> {
+function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
-    req.on("data", () => {});
-    req.on("end", () => resolve());
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > 65_536) {
+        reject(new Error("body"));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
     req.on("error", reject);
   });
+}
+
+async function drainBody(req: IncomingMessage): Promise<void> {
+  await readBody(req);
 }
 
 function writeJson(res: ServerResponse, status: number, body: unknown): void {
