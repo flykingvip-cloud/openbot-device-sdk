@@ -6,6 +6,8 @@
 
 远端测试者（真机不在本机）逐步清单见 [xiaozhi-ota-remote-tester.md](./xiaozhi-ota-remote-tester.md)。
 
+公网 lab（HK）：OTA `https://device-lab.openbot.love/xiaozhi/ota/`，voice `wss://device-lab.openbot.love/`（独立 vhost，非 www/gw）。
+
 ## 推荐：联合启动（同一 ControlPlane）
 
 OTA 签发的 token 必须与 lab-voice 校验共用同一份 sqlite。拆开两个默认库会导致「OTA 有 token、WS 仍 401」。

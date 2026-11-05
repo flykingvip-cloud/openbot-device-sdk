@@ -7,6 +7,14 @@
 
 ---
 
+## 当前 lab 入口（2026-11-05）
+
+- OTA：`https://device-lab.openbot.love/xiaozhi/ota/`
+- 语音：`wss://device-lab.openbot.love/`
+- 样例设备 MAC `80:f1:b2:d2:eb:fb` 已在 HK `claw4-lab` 完成 lab 绑定；其他 MAC 请先发给后台。
+
+---
+
 ## 0. 先确认设备身份（发给后台）
 
 联调前，把下面信息发回后台负责人（没有就对照屏幕 / 串口 / 上次刷机记录）：
@@ -30,9 +38,9 @@
 
 | 名称 | 示例形态 | 后台填好发给你 |
 |---|---|---|
-| **OTA URL** | `https://<host>/xiaozhi/ota/` 或 `http://<公网IP>:8002/xiaozhi/ota/` | `______________________________` |
-| **语音 URL（对照用）** | `wss://<host>/voice` 或 `ws://<公网IP>:8791` | `______________________________` |
-| lab 绑定 | 已对你的 MAC 做完 / 请等确认 | □ 已绑定 □ 未绑定 |
+| **OTA URL** | `https://device-lab.openbot.love/xiaozhi/ota/` | 已部署（HK lab） |
+| **语音 URL（对照用）** | `wss://device-lab.openbot.love/` | 已部署；由 OTA 下发 |
+| lab 绑定 | 样例 MAC `80:f1:b2:d2:eb:fb` 已在 HK lab 绑定 | 其他 MAC 需后台再 `--bind-device` |
 
 要求：
 
