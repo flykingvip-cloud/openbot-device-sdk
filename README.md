@@ -88,13 +88,14 @@ npm run ota-config -- --help
 npm run device-control -- --help
 npm run sim-joint -- --help
 npm run voice -- --help
+npm run xiaozhi-ota -- --help
 npm run live-stub -- --help
 npm run voice-joint -- --help
 npm run voice-harness -- --help
 npm run voice-harness:sim
 ```
 
-控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。实验语音见 [docs/lab-voice.md](docs/lab-voice.md)。
+控制台和模拟器的步骤、状态文件和正式合约针见 [docs/a5-console-sim.md](docs/a5-console-sim.md)。实验配置 HTTP 见 [docs/lab-ota-config.md](docs/lab-ota-config.md)。Metalio/小智协议 OTA 见 [docs/xiaozhi-ota.md](docs/xiaozhi-ota.md)。实验语音见 [docs/lab-voice.md](docs/lab-voice.md)。
 
 Node.js 22.18 或更新版本。`npm test` 在没有 `OPENBOT_DEVICE_DH_STUB_URL` 时跳过 live stub。数字人或摄像头的 live 用例在凭证未设置时也跳过。
 
@@ -121,6 +122,7 @@ OPENBOT_DEVICE_DH_STUB_URL=http://127.0.0.1:8787 npm run live-stub
 - [docs/a2-metalio-voice.md](docs/a2-metalio-voice.md)
 - [docs/a4-claim-bind-ota.md](docs/a4-claim-bind-ota.md)
 - [docs/lab-ota-config.md](docs/lab-ota-config.md)
+- [docs/xiaozhi-ota.md](docs/xiaozhi-ota.md)
 - [docs/lab-voice.md](docs/lab-voice.md)
 - [docs/lab-camera.md](docs/lab-camera.md)
 - [docs/live-stub.md](docs/live-stub.md)

@@ -172,3 +172,21 @@ export type {
   DeviceEdgeUpstreamHit,
   StartDeviceEdgeAuthProxyOptions,
 } from "./device-edge-auth-proxy.ts";
+
+export {
+  XIAOZHI_TZ_OFFSET_ENV,
+  XIAOZHI_VOICE_WS_ENV,
+  assertDeviceReachableVoiceUrl,
+  buildXiaozhiOtaResponse,
+  handleXiaozhiOtaRequest,
+  resolveXiaozhiVoiceWsUrl,
+  startXiaozhiOtaServer,
+} from "./xiaozhi-ota.ts";
+export type {
+  XiaozhiActivation,
+  XiaozhiOtaResponse,
+  XiaozhiOtaServer,
+  XiaozhiOtaServerOptions,
+  XiaozhiServerTime,
+  XiaozhiWebsocketConfig,
+} from "./xiaozhi-ota.ts";
