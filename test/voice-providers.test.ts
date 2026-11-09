@@ -96,7 +96,7 @@ test("lab voice accepts injected AsrProvider and TtsProvider", async () => {
   const tts: TtsProvider = {
     async *synthesize(text, options) {
       assert.equal(text, "injected-asr");
-      assert.equal(options.sampleRate, 24000);
+      assert.equal(options.sampleRate, 16000);
       yield customPacket;
       yield customPacket;
     },
@@ -117,7 +117,7 @@ test("lab voice accepts injected AsrProvider and TtsProvider", async () => {
     client.sendText(JSON.stringify(buildClientHello()));
     const helloFrame = await client.nextFrame();
     const hello = parseServerHello(JSON.parse(helloFrame.payload.toString("utf8")));
-    assert.equal(hello.sampleRate, 24000);
+    assert.equal(hello.sampleRate, 16000);
     const sessionId = hello.sessionId ?? "";
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId, text: "ignored-by-injected" }));
 

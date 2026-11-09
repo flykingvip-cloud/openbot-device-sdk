@@ -127,7 +127,7 @@ test("lab voice accepts Metalio hello, hands a turn to B2, and stops TTS on abor
     assert.equal(helloFrame.opcode, 1);
     const hello = parseServerHello(JSON.parse(helloFrame.payload.toString("utf8")));
     assert.equal(hello.transport, "websocket");
-    assert.equal(hello.sampleRate, 24000);
+    assert.equal(hello.sampleRate, 16000);
     assert.equal(hello.frameDurationMs, 60);
     const sessionId = hello.sessionId ?? "";
     assert.equal(sessionId.length > 0, true);

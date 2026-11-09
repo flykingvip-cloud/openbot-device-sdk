@@ -12,7 +12,7 @@
 - `transport=websocket`
 - `audio_params`: opus、16000 Hz、1 通道、`frame_duration=60`
 
-服务端 hello 的 `transport` 必须是 `websocket`。缺省采样率 24000，缺省帧长 60 ms。等 hello 的固件超时是 10 秒。通道空闲超时 120 秒。
+服务端 hello 的 `transport` 必须是 `websocket`。固件在省略 `sample_rate` 时缺省 24000，缺省帧长 60 ms。Lab hello **显式写 16000**，与 Claw4 扬声器一致，TTS 按该速率编码。等 hello 的固件超时是 10 秒。通道空闲超时 120 秒。
 
 请求头：`Protocol-Version`、`Device-Id`、`Client-Id`。token 非空且不含空格时加 `Bearer `。
 
@@ -28,10 +28,10 @@
 
 | 语义 | 用途 | 采样/帧 | 本仓位置 |
 |---|---|---|---|
-| **播报帧 Opus** | metalio 实时 TTS 下行（裸包，非 Ogg） | hello 默认 **24 kHz / mono / 60 ms** | `OpusFrameEncoder` / `TtsProvider.synthesize` |
+| **播报帧 Opus** | metalio 实时 TTS 下行（裸包，非 Ogg） | lab hello **16 kHz / mono / 60 ms**（固件省略字段时才假设 24 kHz） | `OpusFrameEncoder` / `TtsProvider.synthesize` |
 | **录音存储 Opus** | 录音卡等高码率落盘（常 256 kbps / Ogg 等） | 另一 adapter，**不**进 metalio 常量 | 预留 `adapters/record-card` 等 |
 
-改 hello 采样率须书面一次；不搞 16k/24k 双标准验收口径。
+改 hello 采样率须书面一次；不搞 16k/24k 双标准验收口径。本次书面决定：Lab 下发并编码 **16000**（Claw4 扬声器）。24000 只保留为固件省略 `sample_rate` 时的解析缺省，不作为本服务 hello 的发送值。
 类型化槽位见 [a5-device-capability-matrix.md](a5-device-capability-matrix.md)：`broadcast-frame` → `adapters/metalio`；`recording-storage` → `adapters/record-card`（A5 仅占位）。**不要**把录音存储码率 / Ogg 常量写进 metalio hello。
 
 
@@ -83,7 +83,7 @@ Lab 默认 `MockTtsProvider` 仍走 `placeholderEncode` / `OB-OPUS-PLACEHOLDER`�
 - **流式：** WS chunk → `stream()` partial/final。Mock 为可测 stub；FunASR 等外部注入，**不捆绑**权重。
 - **不做：** 不连 `api.tenclass.net`；不把 `POST /api/v1/upload` / `record/upload` 放进本 SDK（属 gateway / 方案 B）；不改冻结 device-control v1。
 
-TTS 下行采样率跟随 **server hello**（默认 24000 Hz）。`POST /api/v1/upload` 属 OpenBot gateway，不进本包、不进冻结 `/api/device-platform/v1`；对接示例见 [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)。
+TTS 下行采样率跟随 **server hello**（Lab 发送 **16000 Hz**）。`POST /api/v1/upload` 属 OpenBot gateway，不进本包、不进冻结 `/api/device-platform/v1`；对接示例见 [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)。
 
 ## 不做的事
 

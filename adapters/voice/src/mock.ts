@@ -4,6 +4,7 @@ import type { AsrProvider, AsrStreamChunk, AsrStreamResult, AsrTranscribeOptions
 import {
   createOpusUplinkDecoder,
   resolveAsrStreamCodec,
+  tryDecodeOpusPacket,
   type OpusUplinkDecoder,
 } from "./opus-uplink.ts";
 import type { TtsProvider, TtsSynthesizeOptions } from "./tts-provider.ts";
@@ -96,13 +97,11 @@ export class MockAsrProvider implements AsrProvider {
           sawOpus = true;
           // Never treat Opus packet bytes as PCM. Decode or count undecodable stubs.
           if (chunk.data.byteLength > 0) {
-            try {
-              const pcm = ensureOpusDecoder().decodePacket(chunk.data);
-              if (pcm.byteLength > 0) {
-                accPcm = Buffer.concat([accPcm, pcm]);
-              }
-            } catch {
+            const pcm = tryDecodeOpusPacket(ensureOpusDecoder(), chunk.data);
+            if (pcm === undefined) {
               undecodableOpusPackets += 1;
+            } else if (pcm.byteLength > 0) {
+              accPcm = Buffer.concat([accPcm, pcm]);
             }
           }
         } else if (chunk.data.byteLength > 0) {

@@ -16,7 +16,7 @@
 - 合法外部实现：本地 FunASR、局域网 EdgeTTS 等；本包不捆绑权重。
 - Lab 默认 mock：占位 transcript + `OB-OPUS-PLACEHOLDER`（非可播 Opus）。注入 `createOpusFrameTtsProvider` 可得真 Opus 下行。
 - ASR 双模式（A3）：整段 WAV/PCM（头内采样率）+ 流式 stub（partial/final）。
-- TTS 下行采样率以 server hello 为准（默认 24 kHz）。
+- TTS 下行采样率以 server hello 为准。Lab hello **显式发送 16 kHz**（Claw4 扬声器）。固件在字段省略时仍回退 24 kHz；本服务不省略该字段。
 - `POST /api/v1/upload` 属 OpenBot gateway，不在本包。
 
 详见 [docs/a2-metalio-voice.md](../../docs/a2-metalio-voice.md) 与 [docs/lab-voice.md](../../docs/lab-voice.md)。

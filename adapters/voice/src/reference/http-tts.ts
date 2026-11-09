@@ -17,6 +17,7 @@ import {
 } from "../../../metalio/src/constants.ts";
 import {
   createLibopusFrameEncoder,
+  retargetEncoder,
   type OpusFrameEncoder,
 } from "../../../metalio/src/opus-encoder.ts";
 import { pcmBytesPerFrame, type OpusSampleRate } from "../../../metalio/src/opus-boundary.ts";
@@ -28,7 +29,7 @@ import type { FetchLike } from "./http-asr.ts";
 export interface ReferenceHttpTtsProviderOptions extends ReferenceHttpTtsConfig {
   /** Injectable fetch for tests; defaults to global fetch. */
   fetchImpl?: FetchLike;
-  /** Injected encoder; default LibopusFrameEncoder at hello 24 kHz. */
+  /** Injected encoder; owned encoder follows synthesize() sampleRate (lab hello is 16 kHz). */
   encoder?: OpusFrameEncoder;
 }
 
@@ -62,7 +63,7 @@ export class ReferenceHttpTtsProvider implements TtsProvider {
   readonly voice: string | undefined;
   readonly headers: Record<string, string>;
   private readonly fetchImpl: FetchLike;
-  private readonly encoder: OpusFrameEncoder;
+  private encoder: OpusFrameEncoder;
   private readonly ownsEncoder: boolean;
 
   constructor(options: ReferenceHttpTtsProviderOptions) {
@@ -82,11 +83,7 @@ export class ReferenceHttpTtsProvider implements TtsProvider {
       return;
     }
     const sampleRate = options.sampleRate as OpusSampleRate;
-    if (sampleRate !== this.encoder.sampleRate) {
-      throw new Error(
-        `ReferenceHttpTtsProvider encoder is ${this.encoder.sampleRate} Hz but synthesize requested ${sampleRate}`,
-      );
-    }
+    this.encoder = retargetEncoder(this.encoder, sampleRate, this.ownsEncoder);
     if (this.encoder.frameDurationMs !== OPUS_FRAME_DURATION_MS) {
       throw new Error(`encoder frameDurationMs must be ${OPUS_FRAME_DURATION_MS}`);
     }

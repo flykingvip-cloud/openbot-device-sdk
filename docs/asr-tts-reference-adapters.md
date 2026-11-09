@@ -29,7 +29,7 @@ Re-exported from `adapters/voice`, `adapters/metalio`, and `services`.
 | `OPENBOT_TTS_HTTP_URL` | **Required** when TTS is `reference-http` — your EdgeTTS (or compatible) HTTP endpoint |
 | `OPENBOT_TTS_HTTP_VOICE` | Optional voice id in JSON body |
 | `OPENBOT_TTS_HTTP_HEADERS_JSON` | Extra headers as JSON object string |
-| `OPENBOT_TTS_SAMPLE_RATE` | Bridge default TTS sample rate (else metalio hello 24000) |
+| `OPENBOT_TTS_SAMPLE_RATE` | Bridge default TTS sample rate (else firmware omitted-field fallback 24000; lab voice hello itself sends 16000) |
 | `OPENBOT_DEVICE_SDK_ROOT` | Checkout path Agent B / gateway uses to resolve this SDK |
 
 **Product 播报:** do **not** set `OPENBOT_TTS_PROVIDER=opus-frame`.

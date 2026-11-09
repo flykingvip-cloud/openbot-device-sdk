@@ -119,3 +119,28 @@ export class LibopusFrameEncoder implements OpusFrameEncoder {
 export function createLibopusFrameEncoder(options?: CreateLibopusFrameEncoderOptions): OpusFrameEncoder {
   return new LibopusFrameEncoder(options);
 }
+
+/**
+ * Point an owned encoder at `sampleRate`. Injected encoders must already match;
+ * they are not rebuilt. Used so lab TTS follows the hello rate (Claw4: 16 kHz)
+ * without a second hard-coded acceptance rate.
+ */
+export function retargetEncoder(
+  encoder: OpusFrameEncoder,
+  sampleRate: number,
+  ownsEncoder: boolean,
+): OpusFrameEncoder {
+  if (sampleRate !== 16000 && sampleRate !== 24000) {
+    throw new OpusBoundaryError(`unsupported Opus sample rate ${sampleRate}`);
+  }
+  if (encoder.sampleRate === sampleRate) {
+    return encoder;
+  }
+  if (!ownsEncoder) {
+    throw new OpusBoundaryError(
+      `encoder is ${encoder.sampleRate} Hz but synthesize requested ${sampleRate}`,
+    );
+  }
+  encoder.destroy?.();
+  return createLibopusFrameEncoder({ sampleRate });
+}

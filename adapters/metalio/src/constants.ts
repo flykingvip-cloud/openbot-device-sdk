@@ -24,7 +24,19 @@ export const UPLINK_SAMPLE_RATE = 16000;
 
 export const UPLINK_CHANNELS = 1;
 
+/**
+ * Firmware `ParseServerHello` fallback when `audio_params.sample_rate` is omitted.
+ * MetalioClaw4 assumes 24000 in that case. This server always sends the field.
+ */
 export const SERVER_SAMPLE_RATE_DEFAULT = 24000;
+
+/**
+ * Downlink rate the lab Metalio hello advertises and TTS is encoded at.
+ * Claw4 speaker output is 16 kHz. Advertising 24000 makes the firmware warn
+ * (`Server sample rate 24000 does not match device output sample rate 16000`)
+ * and resample TTS. The protocol allows an explicit 16000; that is the rate we emit.
+ */
+export const METALIO_DOWNLINK_SAMPLE_RATE = UPLINK_SAMPLE_RATE;
 
 export const SERVER_FRAME_DURATION_DEFAULT_MS = 60;
 

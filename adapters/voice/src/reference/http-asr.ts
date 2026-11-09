@@ -17,8 +17,10 @@ import type {
   AsrTranscribeOptions,
 } from "../asr-provider.ts";
 import {
+  UndecodableUplinkError,
   createOpusUplinkDecoder,
   resolveAsrStreamCodec,
+  tryDecodeOpusPacket,
 } from "../opus-uplink.ts";
 import type { ReferenceHttpAsrConfig } from "./config.ts";
 
@@ -120,6 +122,8 @@ export class ReferenceHttpAsrProvider implements AsrProvider {
     let pcmAcc = Buffer.alloc(0);
     let sampleRate = decoder.sampleRate;
     let channels = 1;
+    let decodedPackets = 0;
+    let undecodablePackets = 0;
     try {
       for await (const chunk of chunks) {
         const codec = resolveAsrStreamCodec(chunk);
@@ -131,14 +135,25 @@ export class ReferenceHttpAsrProvider implements AsrProvider {
         }
         if (chunk.data.byteLength > 0) {
           if (codec === "opus") {
-            pcmAcc = Buffer.concat([pcmAcc, decoder.decodePacket(chunk.data)]);
+            // One corrupt/partial packet must not skip the HTTP POST for the rest.
+            const pcm = tryDecodeOpusPacket(decoder, chunk.data);
+            if (pcm === undefined) {
+              undecodablePackets += 1;
+            } else if (pcm.byteLength > 0) {
+              decodedPackets += 1;
+              pcmAcc = Buffer.concat([pcmAcc, pcm]);
+            }
           } else {
+            decodedPackets += 1;
             pcmAcc = Buffer.concat([pcmAcc, chunk.data]);
           }
         }
         if (chunk.endOfUtterance) {
           break;
         }
+      }
+      if (pcmAcc.byteLength === 0) {
+        throw new UndecodableUplinkError(undecodablePackets, decodedPackets);
       }
       const text = await this.transcribe(pcmAcc, { sampleRate, channels, format: "pcm" });
       yield { final: text };

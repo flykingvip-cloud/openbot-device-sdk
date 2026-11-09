@@ -27,10 +27,12 @@ export { resolveAsrAudio } from "./asr-audio.ts";
 export type { ResolvedAsrAudio } from "./asr-audio.ts";
 
 export {
+  UndecodableUplinkError,
   createOpusUplinkDecoder,
   finalTranscriptFromStream,
   packetsToAsrStreamChunks,
   resolveAsrStreamCodec,
+  tryDecodeOpusPacket,
   uplinkPacketsLookLikeOpus,
   wrapAsrProviderWithOpusDecode,
 } from "./opus-uplink.ts";

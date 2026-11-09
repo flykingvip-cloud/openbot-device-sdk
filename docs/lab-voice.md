@@ -13,7 +13,7 @@ npm run voice -- --help
 
 客户端 hello 与 `adapters/metalio` 一致：`type=hello`、`transport=websocket`、`features.mcp=true`、Opus 16000 Hz / 单声道 / 60 ms。请求头带 `Protocol-Version`、`Device-Id`、`Client-Id`，以及已绑定设备的 `Authorization`。
 
-服务端 hello 的 `transport` 是 `websocket`，`session_id` 就是本地 B2 会话。协议版本原样回显。
+服务端 hello 的 `transport` 是 `websocket`，`session_id` 就是本地 B2 会话。协议版本原样回显。`audio_params.sample_rate` 为 **16000**（`METALIO_DOWNLINK_SAMPLE_RATE`），与 Claw4 扬声器一致；TTS 也按这个速率编码。固件在 hello 省略 `sample_rate` 时仍假设 24000，所以这里总是带上字段，不另立一套验收口径。
 
 `listen` 的 `stop` 或 `detect` 调用 `finishUtterance`。识别文本默认是 `lab-transcript`，也可以在 `stop` 里带 `text`，或在二进制帧里发送以 `ASR:` 开头的说明。用户文本会写入本地 B2 stand-in 的 `user.turn`，并先发 `stt`。token 过期后不会再走 `finishUtterance`。
 
@@ -23,7 +23,7 @@ npm run voice -- --help
 
 默认下行 TTS 仍是 `OB-OPUS-PLACEHOLDER` 二进制（`MockTtsProvider`），不是可播 Opus。
 
-注入 `createOpusFrameTtsProvider()`（或任意产出裸 Opus 的 `TtsProvider`）后，下行变为 **24 kHz / mono / 60 ms** 播报帧 Opus（`@evan/opus` / libopus WASM 或 native）。录音卡落盘 Opus 属另一 adapter，勿与 hello 常量混用。
+注入 `createOpusFrameTtsProvider()`（或任意产出裸 Opus 的 `TtsProvider`）后，下行变为 **16 kHz / mono / 60 ms** 播报帧 Opus（`@evan/opus` / libopus WASM 或 native），与 hello 的 `sample_rate` 相同。录音卡落盘 Opus 属另一 adapter，勿与 hello 常量混用。
 
 ## 打断（A4）
 
@@ -67,7 +67,7 @@ const asr: AsrProvider = {
 
 const tts: TtsProvider = {
   async *synthesize(text, { sampleRate }) {
-    // e.g. EdgeTTS over LAN → real Opus packets at hello sampleRate (default 24 kHz)
+    // e.g. EdgeTTS over LAN → real Opus packets at hello sampleRate (16000)
     yield opusPacket;
   },
 };
@@ -77,7 +77,34 @@ await startLabVoiceServer(plane, { asrProvider: asr, ttsProvider: tts });
 
 **合法外部实现**：本地 FunASR、局域网 EdgeTTS 等。本包不捆绑权重、不硬编码厂商、不连接 `api.tenclass.net`。
 
-**TTS 下行采样率**：以 metalio server hello 为唯一真相（默认 **24 kHz** / mono / 60 ms）。不要另立 16k/24k 双标准。
+**TTS 下行采样率**：以 metalio server hello 为唯一真相（Lab **16 kHz** / mono / 60 ms，对齐 Claw4 扬声器）。不要另立 16k/24k 双标准。固件省略字段时的 24 kHz 只是它自己的缺省，本服务的 hello 不依赖那个缺省。
+
+## 隔离一轮 listen.stop（不连 HK）
+
+优先跑仓内测试，不要对 `device-lab.openbot.love` 打 websocat：
+
+```bash
+node --disable-warning=ExperimentalWarning --experimental-strip-types --test test/lab-voice-listen-stop.test.ts
+```
+
+覆盖：hello `sample_rate=16000` → `listen.start` → 空包 / 残缺字节 / 随机 Opus 外形 / 合法 16 kHz Opus / PCM 外形 → `listen.stop`。断言客户端收到 `stt` 或 `error`（`uplink_incomplete` / `asr_failed`），随后 `abort` 仍能收到 `lab.abort`（连接没被拆掉）。凭证真过期仍会关连接。
+
+手工等价路径（本机，不是 HK）：
+
+```bash
+OPENBOT_DEVICE_DH_TEST_MODE=1 npm run voice -- --listen 127.0.0.1:8791
+# 另一个终端：已绑定设备的短时 token。不要把 token 写进日志。
+# websocat -H "Device-Id: dev-voice" -H "Client-Id: client-1" \
+#   -H "Protocol-Version: 1" -H "Authorization: Bearer <token>" \
+#   ws://127.0.0.1:8791
+# 文本：client hello → {"type":"listen","state":"start","mode":"manual"}
+# 二进制：若干上行帧 → {"type":"listen","state":"stop"}
+# 期望：stt 或 error，且进程仍在；stderr 有 VOICE-DIAG
+```
+
+`VOICE-DIAG` 打在 stderr（实验机的 `*.err.log`）。字段有 `sessionId`、`deviceId`、`packets`、`bytes`、`approxDurationMs`（非空帧 × 60 ms；AFE 溢出时会短于开口时长）、`result`。不记录 token、Authorization、grant。
+
+`npm run voice` 会读 `OPENBOT_ASR_PROVIDER` / `OPENBOT_ASR_HTTP_URL`。设成 `reference-http` 后，可解码的上行才会 `POST` ASR；单个坏包不再让整轮在 POST 之前失败。
 
 **Upload 归属**：`POST /api/v1/upload` 与 `POST /api/v1/record/upload` 由 **OpenBot gateway** 适配层提供，不属于本 SDK / device-control 冻结面。对接示例、鉴权三件套、stub `:8787` 主路径与 `npm run voice-joint` 见 [docs/integration/claw4-gateway-upload.md](integration/claw4-gateway-upload.md)（权威：openbot-vp `docs/integrations/device-digital-human/claw4-firmware-http-compat.md`）。**不要**把 upload 验收塞进 `npm run sim`。
 

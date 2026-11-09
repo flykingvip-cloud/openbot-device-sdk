@@ -32,7 +32,7 @@ Plan A 切片 **A5**：为后续录音卡（record-card）落地声明 **设备�
 
 | 语义 | 用途 | 采样 / 封装 | 本仓位置 |
 |---|---|---|---|
-| **播报帧 Opus**（broadcast-frame） | metalio 实时 TTS / 语音 WS 下行（裸包，非 Ogg） | hello 默认 **24 kHz / mono / 60 ms** | `adapters/metalio` + `OpusFrameEncoder` / `TtsProvider` |
+| **播报帧 Opus**（broadcast-frame） | metalio 实时 TTS / 语音 WS 下行（裸包，非 Ogg） | lab hello **16 kHz / mono / 60 ms** | `adapters/metalio` + `OpusFrameEncoder` / `TtsProvider` |
 | **录音存储 Opus**（recording-storage） | 录音卡等高码率落盘（常 ~256 kbps / Ogg 等） | **不得**复用 metalio hello 常量 | 预留 `adapters/record-card` |
 
 改 hello 采样率须书面一次；不搞 16k/24k 双标准验收口径。录音卡实现不得把播报帧常量拷进存储路径。

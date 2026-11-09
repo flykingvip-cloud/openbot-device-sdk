@@ -15,7 +15,7 @@ import { ControlPlane } from "../services/src/index.ts";
 import { startLabVoiceServer } from "../services/src/lab-voice.ts";
 import { connectLabVoice, type WsFrame } from "../services/src/voice-ws.ts";
 
-test("lab voice real Opus TtsProvider downlink is non-placeholder at 24 kHz hello", async () => {
+test("lab voice real Opus TtsProvider downlink is non-placeholder at 16 kHz hello", async () => {
   let refs = 0;
   let tokens = 0;
   const control = new ControlPlane({
@@ -53,7 +53,7 @@ test("lab voice real Opus TtsProvider downlink is non-placeholder at 24 kHz hell
     client.sendText(JSON.stringify(buildClientHello()));
     const helloFrame = await client.nextFrame();
     const hello = parseServerHello(JSON.parse(helloFrame.payload.toString("utf8")));
-    assert.equal(hello.sampleRate, 24000);
+    assert.equal(hello.sampleRate, 16000);
     assert.equal(hello.frameDurationMs, 60);
     const sessionId = hello.sessionId ?? "";
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId, text: "speak-opus" }));

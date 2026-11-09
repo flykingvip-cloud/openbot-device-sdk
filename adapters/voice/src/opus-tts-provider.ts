@@ -4,6 +4,7 @@ import {
 } from "../../metalio/src/constants.ts";
 import {
   createLibopusFrameEncoder,
+  retargetEncoder,
   type OpusFrameEncoder,
 } from "../../metalio/src/opus-encoder.ts";
 import { pcmBytesPerFrame, type OpusSampleRate } from "../../metalio/src/opus-boundary.ts";
@@ -13,7 +14,7 @@ import type { TtsProvider, TtsSynthesizeOptions } from "./tts-provider.ts";
 export type OpusTtsPcmMode = "silence" | "tone";
 
 export interface OpusFrameTtsProviderOptions {
-  /** Injected encoder; default is LibopusFrameEncoder at hello 24 kHz. */
+  /** Injected encoder; owned encoder follows synthesize() sampleRate (lab hello is 16 kHz). */
   encoder?: OpusFrameEncoder;
   /** Number of Opus frames to emit; default matches historical mock count (8). */
   frameCount?: number;
@@ -32,7 +33,7 @@ export class OpusFrameTtsProvider implements TtsProvider {
   readonly frameCount: number;
   readonly pcmMode: OpusTtsPcmMode;
   readonly toneAmplitude: number;
-  private readonly encoder: OpusFrameEncoder;
+  private encoder: OpusFrameEncoder;
   private readonly ownsEncoder: boolean;
 
   constructor(options: OpusFrameTtsProviderOptions = {}) {
@@ -45,11 +46,7 @@ export class OpusFrameTtsProvider implements TtsProvider {
 
   async *synthesize(_text: string, options: TtsSynthesizeOptions): AsyncIterable<Buffer> {
     const sampleRate = options.sampleRate as OpusSampleRate;
-    if (sampleRate !== this.encoder.sampleRate) {
-      throw new Error(
-        `OpusFrameTtsProvider encoder is ${this.encoder.sampleRate} Hz but synthesize requested ${sampleRate}`,
-      );
-    }
+    this.encoder = retargetEncoder(this.encoder, sampleRate, this.ownsEncoder);
     if (this.encoder.frameDurationMs !== OPUS_FRAME_DURATION_MS) {
       throw new Error(`encoder frameDurationMs must be ${OPUS_FRAME_DURATION_MS}`);
     }

@@ -11,7 +11,7 @@
 
 合法外部实现示例：本地 **FunASR SenseVoiceSmall**、局域网 EdgeTTS。本包不捆绑权重，不硬编码厂商，不连接 `api.tenclass.net`。
 
-TTS 下行采样率以 metalio **server hello** 为准（默认 24 kHz / mono / 60 ms）。`POST /api/v1/upload` 与 `/api/v1/record/upload` 由 OpenBot gateway 提供，不属于本包。
+TTS 下行采样率以 metalio **server hello** 为准（Lab 16 kHz / mono / 60 ms）。`POST /api/v1/upload` 与 `/api/v1/record/upload` 由 OpenBot gateway 提供，不属于本包。
 
 ## 真 Opus（A2）
 
