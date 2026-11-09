@@ -1,0 +1,9 @@
+{
+  "name": "openbot-lab-edgetts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "msedge-tts": "^2.1.1"
+  }
+}
