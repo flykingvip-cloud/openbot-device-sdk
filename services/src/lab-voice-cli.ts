@@ -1,3 +1,5 @@
+import { METALIO_DOWNLINK_SAMPLE_RATE } from "../../adapters/metalio/src/index.ts";
+import { createVoiceProvidersFromEnv } from "../../adapters/voice/src/index.ts";
 import { OPENBOT_CONTRACT_SHA } from "../../contracts/src/index.ts";
 import { ControlPlane } from "./control-plane.ts";
 import { LAB_VOICE_WSS_ENV } from "./ota-config.ts";
@@ -15,7 +17,14 @@ function main(): void {
   }
   const store = openStaging(args.statePath);
   const plane = new ControlPlane({ store });
-  void startLabVoiceServer(plane, { host: args.host, port: args.port })
+  const providers = createVoiceProvidersFromEnv();
+  void startLabVoiceServer(plane, {
+    host: args.host,
+    port: args.port,
+    asrProvider: providers.asr,
+    ttsProvider: providers.tts,
+    downlinkSampleRate: METALIO_DOWNLINK_SAMPLE_RATE,
+  })
     .then((listening) => {
       process.stdout.write(
         [
@@ -23,9 +32,14 @@ function main(): void {
           `状态: ${args.statePath}`,
           `合约针: ${OPENBOT_CONTRACT_SHA}`,
           `让实验配置改用这个地址: ${LAB_VOICE_WSS_ENV}=${listening.url}`,
-          "只接受已绑定且未吊销的短时 token。hello 使用 Metalio 的 websocket + opus 占位。",
+          `hello audio_params.sample_rate: ${METALIO_DOWNLINK_SAMPLE_RATE}`,
+          `ASR: ${providers.asrKind}`,
+          `TTS: ${providers.ttsKind}`,
+          "只接受已绑定且未吊销的短时 token。hello 使用 Metalio 的 websocket。",
           "TTS 字节默认是 OB-OPUS-PLACEHOLDER。mock 打断残留 ≤2400 ms；真 TtsProvider 打断清队列（queueCleared）。",
-          "ASR/TTS 可注入 Provider（默认 mock 占位）。不是生产 ASR/TTS，也不会连接 api.tenclass.net。",
+          "OPENBOT_ASR_PROVIDER=reference-http 且设置了 OPENBOT_ASR_HTTP_URL 时，listen.stop 会 POST 该 ASR。",
+          "不是生产 ASR/TTS，也不会连接 api.tenclass.net。",
+          "失败轮次写到 stderr，前缀 VOICE-DIAG（不含 token / grant）。",
           "",
         ].join("\n"),
       );
@@ -99,7 +113,8 @@ function helpText(): string {
     "  本地模拟要显式设置 OPENBOT_DEVICE_DH_TEST_MODE=1，并标明 dialogue: sim",
     "  没设 TEST_MODE、也没配 stub 时，不会把 ASR 文本播成助手话",
     "  设置 stub URL、service Basic 和 grant 后，助手话只来自 assistant.visible / assistant.final",
-    "  ASR/TTS 通过 AsrProvider/TtsProvider 注入；默认 mock 占位",
+    "  ASR/TTS 通过环境变量注入（默认 mock）；reference-http 需要对应的 *_HTTP_URL",
+    `  服务端 hello sample_rate 为 ${METALIO_DOWNLINK_SAMPLE_RATE}（对齐 Claw4 扬声器）`,
     "  不连接 api.tenclass.net，也不烧录固件",
   ].join("\n");
 }

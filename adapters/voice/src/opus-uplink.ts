@@ -68,6 +68,38 @@ export function resolveAsrStreamCodec(chunk: AsrStreamChunk): AsrUplinkCodec {
 }
 
 /**
+ * One undecodable uplink packet must not fail the whole listen turn.
+ * libopus throws `Opus(InvalidPacket)` on truncated or non-Opus bytes
+ * (AFE ringbuffer overflow, empty tails, PCM mistaken for Opus).
+ */
+export function tryDecodeOpusPacket(decoder: OpusUplinkDecoder, packet: Uint8Array): Buffer | undefined {
+  if (packet.byteLength === 0) {
+    return Buffer.alloc(0);
+  }
+  try {
+    return decoder.decodePacket(packet);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Raised when every uplink packet failed Opus decode, before any ASR HTTP POST. */
+export class UndecodableUplinkError extends Error {
+  readonly code = "uplink_incomplete" as const;
+  readonly undecodablePackets: number;
+  readonly decodedPackets: number;
+
+  constructor(undecodablePackets: number, decodedPackets: number) {
+    super(
+      `no decodable uplink audio (decodedPackets=${decodedPackets} undecodablePackets=${undecodablePackets})`,
+    );
+    this.name = "UndecodableUplinkError";
+    this.undecodablePackets = undecodablePackets;
+    this.decodedPackets = decodedPackets;
+  }
+}
+
+/**
  * True when collected uplink packets should be labeled opus (not PCM).
  * WAV whole-utterance buffers are handled separately via isWavBuffer.
  */
@@ -213,8 +245,21 @@ async function* decodeOpusChunksToPcm(
       continue;
     }
     // Decode Opus → PCM; never forward raw Opus labeled as pcm.
-    const pcm =
-      chunk.data.byteLength === 0 ? Buffer.alloc(0) : decoder.decodePacket(chunk.data);
+    // A single bad packet is skipped so the rest of the utterance can still be transcribed.
+    const pcm = tryDecodeOpusPacket(decoder, chunk.data);
+    if (pcm === undefined) {
+      if (chunk.endOfUtterance) {
+        yield {
+          data: Buffer.alloc(0),
+          sampleRate: chunk.sampleRate ?? decoder.sampleRate,
+          channels: chunk.channels ?? 1,
+          codec: "pcm",
+          format: "pcm",
+          endOfUtterance: true,
+        };
+      }
+      continue;
+    }
     const out: AsrStreamChunk = {
       data: pcm,
       sampleRate: chunk.sampleRate ?? decoder.sampleRate,

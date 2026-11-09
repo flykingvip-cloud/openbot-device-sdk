@@ -13,6 +13,7 @@ export {
   MAX_SEND_PACKETS_IN_QUEUE,
   OPUS_FRAME_DURATION_MS,
   PROTOCOL_VERSION_DEFAULT,
+  METALIO_DOWNLINK_SAMPLE_RATE,
   SERVER_FRAME_DURATION_DEFAULT_MS,
   SERVER_SAMPLE_RATE_DEFAULT,
   UPLINK_CHANNELS,
@@ -34,6 +35,7 @@ export {
   createLibopusFrameEncoder,
   isOpusPlaceholderPayload,
   looksLikeRawOpusPacket,
+  retargetEncoder,
 } from "./opus-encoder.ts";
 export type { CreateLibopusFrameEncoderOptions, OpusFrameEncoder } from "./opus-encoder.ts";
 export {

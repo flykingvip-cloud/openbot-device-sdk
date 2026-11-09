@@ -21,6 +21,7 @@ import {
 } from "../../metalio/src/constants.ts";
 import {
   createLibopusFrameEncoder,
+  retargetEncoder,
   type OpusFrameEncoder,
 } from "../../metalio/src/opus-encoder.ts";
 import { pcmBytesPerFrame, type OpusSampleRate } from "../../metalio/src/opus-boundary.ts";
@@ -170,7 +171,7 @@ export class ProportionalSilenceTtsProvider implements TtsProvider {
   readonly msPerChar: number;
   readonly minFrames: number;
   readonly maxFrames: number;
-  private readonly encoder: OpusFrameEncoder;
+  private encoder: OpusFrameEncoder;
   private readonly ownsEncoder: boolean;
 
   constructor(options: ProportionalSilenceTtsProviderOptions = {}) {
@@ -186,11 +187,7 @@ export class ProportionalSilenceTtsProvider implements TtsProvider {
       return;
     }
     const sampleRate = options.sampleRate as OpusSampleRate;
-    if (sampleRate !== this.encoder.sampleRate) {
-      throw new Error(
-        `ProportionalSilenceTtsProvider encoder is ${this.encoder.sampleRate} Hz but synthesize requested ${sampleRate}`,
-      );
-    }
+    this.encoder = retargetEncoder(this.encoder, sampleRate, this.ownsEncoder);
     if (this.encoder.frameDurationMs !== OPUS_FRAME_DURATION_MS) {
       throw new Error(`encoder frameDurationMs must be ${OPUS_FRAME_DURATION_MS}`);
     }

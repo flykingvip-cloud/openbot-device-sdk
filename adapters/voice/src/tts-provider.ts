@@ -1,13 +1,13 @@
 /**
  * Injectable TTS for device adapters.
  * Implementations (EdgeTTS, local engines, etc.) live outside this package.
- * Downlink sample rate follows metalio server hello (default 24 kHz mono / 60 ms).
+ * Downlink sample rate follows metalio server hello (lab sends 16 kHz mono / 60 ms).
  * Returned buffers are Opus packets when a real encoder is injected;
  * the lab mock yields OB-OPUS-PLACEHOLDER frames (not playable Opus).
  */
 
 export interface TtsSynthesizeOptions {
-  /** Target Opus sample rate; metalio hello default is 24000. */
+  /** Target Opus sample rate; lab Metalio hello sends 16000. */
   sampleRate: number;
 }
 

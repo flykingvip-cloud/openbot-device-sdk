@@ -13,7 +13,7 @@ Plan **A5** reserves this folder for a future recording-card / high-bitrate capt
 
 | Role | Owner | Shape |
 |---|---|---|
-| **broadcast-frame** | `adapters/metalio` | Real-time TTS / voice WS bare Opus packets (hello defaults 24 kHz / mono / 60 ms downlink) |
+| **broadcast-frame** | `adapters/metalio` | Real-time TTS / voice WS bare Opus packets (lab hello 16 kHz / mono / 60 ms downlink) |
 | **recording-storage** | this adapter (later) | High-bitrate capture for upload / archive — **not** metalio hello constants |
 
 See [docs/a5-device-capability-matrix.md](../../docs/a5-device-capability-matrix.md) and [docs/a2-metalio-voice.md](../../docs/a2-metalio-voice.md).

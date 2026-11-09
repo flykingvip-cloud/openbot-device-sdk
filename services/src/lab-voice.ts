@@ -3,18 +3,20 @@ import type { Duplex } from "node:stream";
 
 import {
   MetalioAbortResidual,
+  METALIO_DOWNLINK_SAMPLE_RATE,
   PROTOCOL_VERSION_DEFAULT,
   SERVER_FRAME_DURATION_DEFAULT_MS,
-  SERVER_SAMPLE_RATE_DEFAULT,
   UPLINK_CHANNELS,
   UPLINK_SAMPLE_RATE,
   OPUS_FRAME_DURATION_MS,
   DECODE_QUEUE_BUDGET_MS,
+  decodeBinaryFrame,
   type AbortDecodePolicy,
 } from "../../adapters/metalio/src/index.ts";
 import {
   MockAsrProvider,
   MockTtsProvider,
+  UndecodableUplinkError,
   finalTranscriptFromStream,
   isWavBuffer,
   mockAsrTranscript,
@@ -122,6 +124,14 @@ export interface LabVoiceServerOptions {
    * clear-on-abort for any other (real) TtsProvider.
    */
   abortDecodePolicy?: AbortDecodePolicy;
+  /**
+   * Downlink rate written into the server hello and passed to TTS.
+   * Default is the Claw4 speaker rate (16000). 24000 is accepted only when
+   * a caller explicitly opts into the firmware's omitted-field fallback.
+   */
+  downlinkSampleRate?: 16000 | 24000;
+  /** Clock for the local session book (tests expire the cursor without expiring the token). */
+  now?: () => number;
 }
 
 export interface LabVoiceServer {
@@ -141,7 +151,14 @@ export function startLabVoiceServer(
   const asrProvider = options.asrProvider ?? new MockAsrProvider();
   const ttsProvider = options.ttsProvider ?? new MockTtsProvider();
   const abortDecodePolicy = resolveAbortDecodePolicy(ttsProvider, options.abortDecodePolicy);
-  const book = new SessionBook({ plane });
+  const downlinkSampleRate = options.downlinkSampleRate ?? METALIO_DOWNLINK_SAMPLE_RATE;
+  if (downlinkSampleRate !== 16000 && downlinkSampleRate !== 24000) {
+    return Promise.reject(new Error("lab downlink sample rate must be 16000 or 24000"));
+  }
+  const book = new SessionBook({
+    plane,
+    ...(options.now !== undefined ? { now: options.now } : {}),
+  });
   const sockets = new Set<Duplex>();
   const server = createServer();
   server.on("upgrade", (req, socket) => {
@@ -150,7 +167,18 @@ export function startLabVoiceServer(
     socket.on("close", () => {
       sockets.delete(socket);
     });
-    acceptVoiceUpgrade(plane, book, req, socket, env, fetchImpl, asrProvider, ttsProvider, abortDecodePolicy);
+    acceptVoiceUpgrade(
+      plane,
+      book,
+      req,
+      socket,
+      env,
+      fetchImpl,
+      asrProvider,
+      ttsProvider,
+      abortDecodePolicy,
+      downlinkSampleRate,
+    );
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -181,6 +209,7 @@ function acceptVoiceUpgrade(
   asrProvider: AsrProvider,
   ttsProvider: TtsProvider,
   abortDecodePolicy: AbortDecodePolicy,
+  downlinkSampleRate: 16000 | 24000,
 ): void {
   const deviceId = headerValue(req, "device-id");
   const clientId = headerValue(req, "client-id");
@@ -207,7 +236,20 @@ function acceptVoiceUpgrade(
       "",
     ].join("\r\n"),
   );
-  attachVoiceSession(plane, book, socket, deviceId, version, token, env, fetchImpl, asrProvider, ttsProvider, abortDecodePolicy);
+  attachVoiceSession(
+    plane,
+    book,
+    socket,
+    deviceId,
+    version,
+    token,
+    env,
+    fetchImpl,
+    asrProvider,
+    ttsProvider,
+    abortDecodePolicy,
+    downlinkSampleRate,
+  );
 }
 
 function attachVoiceSession(
@@ -222,6 +264,7 @@ function attachVoiceSession(
   asrProvider: AsrProvider,
   ttsProvider: TtsProvider,
   abortDecodePolicy: AbortDecodePolicy,
+  downlinkSampleRate: 16000 | 24000,
 ): void {
   const decoder = new WsFrameDecoder();
   const play = new LabPlayQueue(abortDecodePolicy);
@@ -232,6 +275,8 @@ function attachVoiceSession(
   let binaryNote = "";
   /** Whole-utterance PCM/WAV uplink collected during listen (A3). */
   const audioChunks: Buffer[] = [];
+  let uplinkBytes = 0;
+  let uplinkTruncated = false;
   let aborted = false;
   let speaking = false;
   let turn = 0;
@@ -239,64 +284,146 @@ function attachVoiceSession(
   let activeRun: LiveRunHandle | undefined;
   const speechQueue: AssistantSpeech[] = [];
   let drainingSpeech = false;
+  let finishing = false;
 
-  const sendText = (body: unknown) => {
-    socket.write(encodeServerFrame(1, Buffer.from(JSON.stringify(body))));
+  const sendText = (body: unknown): void => {
+    if (closed || socket.destroyed || !socket.writable || socket.writableEnded) {
+      return;
+    }
+    try {
+      const payload = Buffer.from(JSON.stringify(body));
+      if (payload.length > 60_000) {
+        voiceDiag({ event: "send.skipped", sessionId, deviceId, detail: "json frame exceeds 60000 bytes" });
+        return;
+      }
+      socket.write(encodeServerFrame(1, payload));
+    } catch (error) {
+      voiceDiag({ event: "send.failed", sessionId, deviceId, detail: safeDetail(error) });
+    }
   };
-  const sendBinary = (payload: Buffer) => {
-    socket.write(encodeServerFrame(2, payload));
+  const sendBinary = (payload: Buffer): void => {
+    if (closed || socket.destroyed || !socket.writable || socket.writableEnded) {
+      return;
+    }
+    try {
+      socket.write(encodeServerFrame(2, payload));
+    } catch (error) {
+      voiceDiag({ event: "send.failed", sessionId, deviceId, detail: safeDetail(error) });
+    }
   };
+
+  socket.on("error", (error: Error) => {
+    // A missing error listener is an uncaught exception: Node exits and RSTs the device TLS session.
+    voiceDiag({ event: "socket.error", sessionId, deviceId, detail: safeDetail(error) });
+    closed = true;
+  });
 
   socket.on("data", (chunk: Buffer) => {
     let frames;
     try {
       frames = decoder.push(chunk);
-    } catch {
-      socket.end();
+    } catch (error) {
+      // Unrecoverable framing only. listen.stop audio is a normal masked frame and must not land here.
+      voiceDiag({ event: "ws_frame", sessionId, deviceId, detail: safeDetail(error) });
+      sendText({ type: "error", code: "ws_frame", session_id: sessionId, detail: safeDetail(error) });
+      closed = true;
+      try {
+        socket.end(encodeServerFrame(8, Buffer.alloc(0)));
+      } catch {
+        socket.destroy();
+      }
       return;
     }
-    for (const frame of frames) {
-      if (frame.opcode === 8) {
-        socket.end(encodeServerFrame(8, Buffer.alloc(0)));
-        return;
-      }
-      if (frame.opcode === 9) {
-        socket.write(encodeServerFrame(10, frame.payload));
-        continue;
-      }
-      if (frame.opcode === 1) {
-        handleText(frame.payload.toString("utf8"));
-        continue;
-      }
-      if (frame.opcode === 2 && listening) {
-        if (refuseIfCredentialDead()) {
+    try {
+      for (const frame of frames) {
+        if (frame.opcode === 8) {
+          closed = true;
+          socket.end(encodeServerFrame(8, Buffer.alloc(0)));
           return;
         }
-        const payload = Buffer.from(frame.payload);
-        const asText = payload.toString("utf8");
-        if (asText.startsWith("ASR:")) {
-          binaryNote = asText;
-        } else {
-          // Binary uplink packets (Opus/PCM/WAV). finishUtterance prefers stream() for packets.
-          audioChunks.push(payload);
+        if (frame.opcode === 9) {
+          sendBinaryPong(frame.payload);
+          continue;
+        }
+        if (frame.opcode === 1) {
+          handleText(frame.payload.toString("utf8"));
+          continue;
+        }
+        if (frame.opcode === 2 && listening) {
+          if (refuseIfCredentialDead()) {
+            return;
+          }
+          const payload = rawUplinkPacket(version, Buffer.from(frame.payload));
+          const asText = payload.toString("utf8");
+          if (asText.startsWith("ASR:")) {
+            binaryNote = asText;
+          } else {
+            pushUplink(payload);
+          }
         }
       }
+    } catch (error) {
+      voiceDiag({ event: "socket.data", sessionId, deviceId, detail: safeDetail(error) });
+      sendText({ type: "error", code: "protocol", session_id: sessionId, detail: safeDetail(error) });
     }
   });
+
+  function sendBinaryPong(payload: Buffer): void {
+    if (closed || socket.destroyed || !socket.writable || socket.writableEnded) {
+      return;
+    }
+    try {
+      socket.write(encodeServerFrame(10, payload));
+    } catch (error) {
+      voiceDiag({ event: "send.failed", sessionId, deviceId, detail: safeDetail(error) });
+    }
+  }
+
+  function pushUplink(payload: Buffer): void {
+    if (uplinkTruncated) {
+      return;
+    }
+    if (audioChunks.length >= MAX_UPLINK_PACKETS || uplinkBytes + payload.byteLength > MAX_UPLINK_BYTES) {
+      uplinkTruncated = true;
+      voiceDiag({
+        event: "uplink.truncated",
+        sessionId,
+        deviceId,
+        packets: audioChunks.length,
+        bytes: uplinkBytes,
+      });
+      return;
+    }
+    audioChunks.push(payload);
+    uplinkBytes += payload.byteLength;
+  }
 
   function refuseIfCredentialDead(): boolean {
     if (closed) {
       return true;
     }
-    const decision = plane.assessConnectionCredential(deviceId, token);
+    let decision;
+    try {
+      decision = plane.assessConnectionCredential(deviceId, token);
+    } catch (error) {
+      // A store reload failure must not RST the device. Keep the socket and report it.
+      voiceDiag({ event: "credential.check_failed", sessionId, deviceId, detail: safeDetail(error) });
+      sendText({ type: "error", code: "credential_check", session_id: sessionId, detail: safeDetail(error) });
+      return true;
+    }
     if (decision.ok) {
       return false;
     }
-    closed = true;
+    voiceDiag({ event: "credential.rejected", sessionId, deviceId, code: decision.code });
     speaking = false;
     aborted = true;
-    sendText({ type: "error", code: decision.code });
-    socket.end();
+    sendText({ type: "error", code: decision.code, session_id: sessionId });
+    closed = true;
+    try {
+      socket.end(encodeServerFrame(8, Buffer.alloc(0)));
+    } catch {
+      socket.destroy();
+    }
     return true;
   }
 
@@ -326,13 +453,21 @@ function attachVoiceSession(
         socket.end();
         return;
       }
-      const opened = book.open({
-        authorizationRef: binding.authorizationRef,
-        bindingVersion: binding.bindingVersion,
-        digitalHumanId: binding.digitalHumanId,
-        deviceId,
-        idempotencyKey: `voice-${deviceId}`,
-      });
+      let opened;
+      try {
+        opened = book.open({
+          authorizationRef: binding.authorizationRef,
+          bindingVersion: binding.bindingVersion,
+          digitalHumanId: binding.digitalHumanId,
+          deviceId,
+          idempotencyKey: `voice-${deviceId}`,
+        });
+      } catch (error) {
+        // SESSION_BUSY and similar used to throw out of the data handler and kill the process (TCP RST).
+        voiceDiag({ event: "hello.failed", deviceId, detail: safeDetail(error) });
+        sendText({ type: "error", code: "hello", detail: safeDetail(error) });
+        return;
+      }
       sessionId = opened.sessionId;
       greeted = true;
       sendText({
@@ -342,10 +477,17 @@ function attachVoiceSession(
         version,
         audio_params: {
           format: "opus",
-          sample_rate: SERVER_SAMPLE_RATE_DEFAULT,
+          sample_rate: downlinkSampleRate,
           channels: UPLINK_CHANNELS,
           frame_duration: SERVER_FRAME_DURATION_DEFAULT_MS,
         },
+      });
+      voiceDiag({
+        event: "hello",
+        sessionId,
+        deviceId,
+        downlinkSampleRate,
+        protocolVersion: version,
       });
       return;
     }
@@ -361,19 +503,44 @@ function attachVoiceSession(
       listenText = "";
       binaryNote = "";
       audioChunks.length = 0;
+      uplinkBytes = 0;
+      uplinkTruncated = false;
       return;
     }
     if (message.state === "detect" && typeof message.text === "string") {
       listenText = message.text;
-      void finishUtterance();
+      scheduleFinish();
       return;
     }
     if (message.state === "stop") {
       if (typeof message.text === "string" && message.text.length > 0) {
         listenText = message.text;
       }
-      void finishUtterance();
+      scheduleFinish();
     }
+  }
+
+  function scheduleFinish(): void {
+    if (finishing) {
+      voiceDiag({ event: "listen.stop.ignored", sessionId, deviceId, detail: "turn already finishing" });
+      return;
+    }
+    finishing = true;
+    void finishUtterance()
+      .catch((error: unknown) => {
+        const stats = summarizeUplink(audioChunks, uplinkTruncated);
+        voiceDiag({ event: "turn.failed", sessionId, deviceId, ...stats, detail: safeDetail(error) });
+        sendText({
+          type: "error",
+          code: "turn_failed",
+          session_id: sessionId,
+          detail: safeDetail(error),
+          uplink: publicUplink(stats),
+        });
+      })
+      .finally(() => {
+        finishing = false;
+      });
   }
 
   /**
@@ -393,14 +560,35 @@ function attachVoiceSession(
     listening = false;
     const hint = listenText.length > 0 ? listenText : binaryNote;
     const packets = audioChunks.map((chunk) => Buffer.from(chunk));
+    const stats = summarizeUplink(packets, uplinkTruncated);
     listenText = "";
     binaryNote = "";
     audioChunks.length = 0;
+    uplinkBytes = 0;
+    uplinkTruncated = false;
     let text: string;
     try {
       text = await resolveLabUtteranceTranscript(asrProvider, packets, hint);
     } catch (error) {
-      reportLiveFailure(error);
+      const incomplete = isUplinkIncomplete(error);
+      const code = incomplete ? "uplink_incomplete" : "asr_failed";
+      voiceDiag({
+        event: "listen.stop",
+        sessionId,
+        deviceId,
+        ...stats,
+        result: code,
+        detail: safeDetail(error),
+      });
+      // stt first so the device can leave the listen turn; error carries the reason. Do not close.
+      sendText({ type: "stt", session_id: sessionId, text: "", source: "asr", dialogue: "off" });
+      sendText({
+        type: "error",
+        code,
+        session_id: sessionId,
+        detail: safeDetail(error),
+        uplink: publicUplink(stats),
+      });
       return;
     }
     if (refuseIfCredentialDead()) {
@@ -408,7 +596,26 @@ function attachVoiceSession(
     }
     turn += 1;
     const turnIndex = turn;
-    book.append(sessionId, { eventId: `turn-${turnIndex}`, type: "user.turn" });
+    try {
+      book.append(sessionId, { eventId: `turn-${turnIndex}`, type: "user.turn" });
+    } catch (error) {
+      // Cursor expiry after a long manual listen (no firmware VAD) must not kill the process before stt.
+      voiceDiag({
+        event: "turn.append_failed",
+        sessionId,
+        deviceId,
+        ...stats,
+        detail: safeDetail(error),
+      });
+    }
+    voiceDiag({
+      event: "listen.stop",
+      sessionId,
+      deviceId,
+      ...stats,
+      result: "stt",
+      textChars: text.length,
+    });
     let mode: "sim" | "live" | "off";
     try {
       mode = liveDialogueMode(env);
@@ -430,7 +637,9 @@ function attachVoiceSession(
     }
     if (mode === "sim") {
       sendText({ type: "stt", session_id: sessionId, text, source: "sim", dialogue: "sim" });
-      void beginTts(text, "sim");
+      void beginTts(text, "sim").catch((error: unknown) => {
+      reportLiveFailure(error);
+    });
       return;
     }
     sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "sim" });
@@ -487,6 +696,9 @@ function attachVoiceSession(
     void beginTts(next.text, "openbot", () => {
       drainingSpeech = false;
       drainSpeech();
+    }).catch((error: unknown) => {
+      drainingSpeech = false;
+      reportLiveFailure(error);
     });
   }
 
@@ -494,7 +706,8 @@ function attachVoiceSession(
     if (closed) {
       return;
     }
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = safeDetail(error);
+    voiceDiag({ event: "live.failed", sessionId, deviceId, detail });
     sendText({ type: "error", code: "live_stub", source: "openbot", dialogue: "openbot", detail });
   }
 
@@ -508,7 +721,7 @@ function attachVoiceSession(
       onDone?.();
     };
     try {
-      for await (const payload of ttsProvider.synthesize(text, { sampleRate: SERVER_SAMPLE_RATE_DEFAULT })) {
+      for await (const payload of ttsProvider.synthesize(text, { sampleRate: downlinkSampleRate })) {
         if (refuseIfCredentialDead()) {
           speaking = false;
           finish();
@@ -571,6 +784,82 @@ function attachVoiceSession(
       queueCleared: report.queueCleared,
       abortDecodePolicy: report.abortDecodePolicy,
     });
+  }
+}
+
+/** ~3 minutes of 60 ms uplink frames, or 1.5 MB, whichever comes first. */
+const MAX_UPLINK_PACKETS = 3_000;
+const MAX_UPLINK_BYTES = 1_500_000;
+
+const SECRET_TEXT = /Bearer\s+\S+|ctok_[A-Za-z0-9_-]+|azr_[A-Za-z0-9_-]+|grant[_-][A-Za-z0-9_.:-]{8,}/gi;
+
+interface UplinkStats {
+  packets: number;
+  bytes: number;
+  emptyPackets: number;
+  approxDurationMs: number;
+  truncated: boolean;
+}
+
+function summarizeUplink(packets: readonly Buffer[], truncated: boolean): UplinkStats {
+  let bytes = 0;
+  let emptyPackets = 0;
+  for (const packet of packets) {
+    bytes += packet.byteLength;
+    if (packet.byteLength === 0) {
+      emptyPackets += 1;
+    }
+  }
+  const voiced = packets.length - emptyPackets;
+  return {
+    packets: packets.length,
+    bytes,
+    emptyPackets,
+    // One Metalio uplink frame is 60 ms. AFE overflow can make this shorter than wall-clock speech.
+    approxDurationMs: voiced * OPUS_FRAME_DURATION_MS,
+    truncated,
+  };
+}
+
+function publicUplink(stats: UplinkStats): Record<string, number | boolean> {
+  return {
+    packets: stats.packets,
+    bytes: stats.bytes,
+    emptyPackets: stats.emptyPackets,
+    approxDurationMs: stats.approxDurationMs,
+    truncated: stats.truncated,
+  };
+}
+
+function safeDetail(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  return raw.replace(SECRET_TEXT, "[redacted]").slice(0, 240);
+}
+
+function voiceDiag(fields: Record<string, unknown>): void {
+  const payload: Record<string, unknown> = { ts: new Date().toISOString() };
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === "token" || key === "authorization" || key === "grant") {
+      continue;
+    }
+    payload[key] = value;
+  }
+  process.stderr.write(`VOICE-DIAG ${JSON.stringify(payload)}\n`);
+}
+
+function isUplinkIncomplete(error: unknown): boolean {
+  return error instanceof UndecodableUplinkError || (typeof error === "object" && error !== null && (error as { code?: unknown }).code === "uplink_incomplete");
+}
+
+/** Protocol version 2/3 prefixes a header; version 1 is the bare Opus body. */
+function rawUplinkPacket(version: number, payload: Buffer): Buffer {
+  if (version !== 2 && version !== 3) {
+    return payload;
+  }
+  try {
+    return Buffer.from(decodeBinaryFrame(version, payload).payload);
+  } catch {
+    return payload;
   }
 }
 

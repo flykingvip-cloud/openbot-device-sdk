@@ -89,7 +89,7 @@ export const METALIO_ADAPTER_SLOT: AdapterSlotDeclaration = {
   status: "implemented",
   openApiSurface: "none",
   summary:
-    "Metalio WebSocket voice line: hello Opus uplink 16 kHz / downlink default 24 kHz / 60 ms bare packets. Not recording-storage Opus.",
+    "Metalio WebSocket voice line: hello Opus uplink 16 kHz / lab downlink 16 kHz (Claw4 speaker) / 60 ms bare packets. Firmware still assumes 24 kHz only when sample_rate is omitted. Not recording-storage Opus.",
 };
 
 /** Record-card / high-bitrate capture — placeholder for later slices. */
