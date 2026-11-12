@@ -285,6 +285,8 @@ function attachVoiceSession(
   const speechQueue: AssistantSpeech[] = [];
   let drainingSpeech = false;
   let finishing = false;
+  let finishGeneration = 0;
+  let inFlightBytes = 0;
 
   const sendText = (body: unknown): void => {
     if (closed || socket.destroyed || !socket.writable || socket.writableEnded) {
@@ -325,7 +327,6 @@ function attachVoiceSession(
     } catch (error) {
       // Unrecoverable framing only. listen.stop audio is a normal masked frame and must not land here.
       voiceDiag({ event: "ws_frame", sessionId, deviceId, detail: safeDetail(error) });
-      sendText({ type: "error", code: "ws_frame", session_id: sessionId, detail: safeDetail(error) });
       closed = true;
       try {
         socket.end(encodeServerFrame(8, Buffer.alloc(0)));
@@ -364,7 +365,6 @@ function attachVoiceSession(
       }
     } catch (error) {
       voiceDiag({ event: "socket.data", sessionId, deviceId, detail: safeDetail(error) });
-      sendText({ type: "error", code: "protocol", session_id: sessionId, detail: safeDetail(error) });
     }
   });
 
@@ -408,7 +408,6 @@ function attachVoiceSession(
     } catch (error) {
       // A store reload failure must not RST the device. Keep the socket and report it.
       voiceDiag({ event: "credential.check_failed", sessionId, deviceId, detail: safeDetail(error) });
-      sendText({ type: "error", code: "credential_check", session_id: sessionId, detail: safeDetail(error) });
       return true;
     }
     if (decision.ok) {
@@ -417,7 +416,6 @@ function attachVoiceSession(
     voiceDiag({ event: "credential.rejected", sessionId, deviceId, code: decision.code });
     speaking = false;
     aborted = true;
-    sendText({ type: "error", code: decision.code, session_id: sessionId });
     closed = true;
     try {
       socket.end(encodeServerFrame(8, Buffer.alloc(0)));
@@ -443,13 +441,13 @@ function attachVoiceSession(
     }
     if (!greeted) {
       if (!isClientHello(message, version)) {
-        sendText({ type: "error", code: "hello" });
+        closed = true;
         socket.end();
         return;
       }
       const binding = plane.getBinding(deviceId);
       if (!binding) {
-        sendText({ type: "error", code: "unbound" });
+        closed = true;
         socket.end();
         return;
       }
@@ -465,7 +463,6 @@ function attachVoiceSession(
       } catch (error) {
         // SESSION_BUSY and similar used to throw out of the data handler and kill the process (TCP RST).
         voiceDiag({ event: "hello.failed", deviceId, detail: safeDetail(error) });
-        sendText({ type: "error", code: "hello", detail: safeDetail(error) });
         return;
       }
       sessionId = opened.sessionId;
@@ -499,17 +496,21 @@ function attachVoiceSession(
       return;
     }
     if (message.state === "start") {
+      if (finishing && inFlightBytes === 0) {
+        cancelFinish("listen.start");
+      }
       listening = true;
       listenText = "";
       binaryNote = "";
       audioChunks.length = 0;
       uplinkBytes = 0;
       uplinkTruncated = false;
+      voiceDiag({ event: "listen.start", sessionId, deviceId });
       return;
     }
     if (message.state === "detect" && typeof message.text === "string") {
       listenText = message.text;
-      scheduleFinish();
+      voiceDiag({ event: "listen.detect", sessionId, deviceId, textChars: message.text.length });
       return;
     }
     if (message.state === "stop") {
@@ -520,27 +521,65 @@ function attachVoiceSession(
     }
   }
 
+  function cancelFinish(reason: string): void {
+    finishGeneration += 1;
+    finishing = false;
+    inFlightBytes = 0;
+    voiceDiag({ event: "listen.finish.cancelled", sessionId, deviceId, reason });
+  }
+
   function scheduleFinish(): void {
     if (finishing) {
-      voiceDiag({ event: "listen.stop.ignored", sessionId, deviceId, detail: "turn already finishing" });
-      return;
+      if (inFlightBytes === 0) {
+        cancelFinish("empty in-flight superseded by stop");
+      } else {
+        voiceDiag({ event: "listen.stop.ignored", sessionId, deviceId, detail: "turn already finishing" });
+        return;
+      }
     }
     finishing = true;
-    void finishUtterance()
+    const generation = finishGeneration + 1;
+    finishGeneration = generation;
+    listening = false;
+    const hint = listenText.length > 0 ? listenText : binaryNote;
+    const packets = audioChunks.map((chunk) => Buffer.from(chunk));
+    const stats = summarizeUplink(packets, uplinkTruncated);
+    inFlightBytes = stats.bytes;
+    listenText = "";
+    binaryNote = "";
+    audioChunks.length = 0;
+    uplinkBytes = 0;
+    uplinkTruncated = false;
+    voiceDiag({
+      event: "listen.finish.start",
+      sessionId,
+      deviceId,
+      ...stats,
+      hintChars: hint.length,
+    });
+    void finishUtterance(generation, packets, stats, hint)
       .catch((error: unknown) => {
-        const stats = summarizeUplink(audioChunks, uplinkTruncated);
+        if (generation !== finishGeneration) {
+          return;
+        }
         voiceDiag({ event: "turn.failed", sessionId, deviceId, ...stats, detail: safeDetail(error) });
-        sendText({
-          type: "error",
-          code: "turn_failed",
-          session_id: sessionId,
-          detail: safeDetail(error),
-          uplink: publicUplink(stats),
-        });
+        speakPrompt(USER_PROMPT_UNAVAILABLE);
       })
       .finally(() => {
-        finishing = false;
+        if (generation === finishGeneration) {
+          finishing = false;
+        }
       });
+  }
+
+  function isBlankTranscript(value: string): boolean {
+    return value.trim().length === 0;
+  }
+
+  function speakPrompt(text: string): void {
+    void beginTts(text, "openbot", undefined, true).catch((error: unknown) => {
+      voiceDiag({ event: "prompt.failed", sessionId, deviceId, detail: safeDetail(error) });
+    });
   }
 
   /**
@@ -549,27 +588,29 @@ function attachVoiceSession(
    * - Packetized uplink (Opus or PCM frames) -> `asrProvider.stream()` with preserved
    *   packet boundaries; Opus chunks are labeled codec:"opus" (never PCM).
    * - Otherwise listen text / `ASR:` notes (lab hints) via transcribe or stream.
-   * With no live stub this also speaks that transcript and is labeled `sim`. A configured
-   * stub speaks only `assistant.visible` / `assistant.final`. It does not turn the ASR
-   * text into OpenBot dialogue.
+   * listen.detect only stores a hint; ASR runs on listen.stop.
+   * Empty transcripts never go to the OpenBot turns API. User-visible failures
+   * are spoken with tts sentence_start, never type:error.
    */
-  async function finishUtterance(): Promise<void> {
+  async function finishUtterance(
+    generation: number,
+    packets: Buffer[],
+    stats: UplinkStats,
+    hint: string,
+  ): Promise<void> {
+    if (generation !== finishGeneration) {
+      return;
+    }
     if (refuseIfCredentialDead()) {
       return;
     }
-    listening = false;
-    const hint = listenText.length > 0 ? listenText : binaryNote;
-    const packets = audioChunks.map((chunk) => Buffer.from(chunk));
-    const stats = summarizeUplink(packets, uplinkTruncated);
-    listenText = "";
-    binaryNote = "";
-    audioChunks.length = 0;
-    uplinkBytes = 0;
-    uplinkTruncated = false;
     let text: string;
     try {
       text = await resolveLabUtteranceTranscript(asrProvider, packets, hint);
     } catch (error) {
+      if (generation !== finishGeneration) {
+        return;
+      }
       const incomplete = isUplinkIncomplete(error);
       const code = incomplete ? "uplink_incomplete" : "asr_failed";
       voiceDiag({
@@ -580,15 +621,11 @@ function attachVoiceSession(
         result: code,
         detail: safeDetail(error),
       });
-      // stt first so the device can leave the listen turn; error carries the reason. Do not close.
       sendText({ type: "stt", session_id: sessionId, text: "", source: "asr", dialogue: "off" });
-      sendText({
-        type: "error",
-        code,
-        session_id: sessionId,
-        detail: safeDetail(error),
-        uplink: publicUplink(stats),
-      });
+      speakPrompt(USER_PROMPT_NOT_HEARD);
+      return;
+    }
+    if (generation !== finishGeneration) {
       return;
     }
     if (refuseIfCredentialDead()) {
@@ -599,7 +636,6 @@ function attachVoiceSession(
     try {
       book.append(sessionId, { eventId: `turn-${turnIndex}`, type: "user.turn" });
     } catch (error) {
-      // Cursor expiry after a long manual listen (no firmware VAD) must not kill the process before stt.
       voiceDiag({
         event: "turn.append_failed",
         sessionId,
@@ -626,23 +662,26 @@ function attachVoiceSession(
     }
     if (mode === "off") {
       sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "off" });
-      sendText({
-        type: "error",
-        code: "dialogue_unavailable",
-        source: "off",
-        dialogue: "off",
-        detail: "OPENBOT_DEVICE_DH_TEST_MODE=1 is required for local sim; the live connector is not configured",
-      });
+      speakPrompt(isBlankTranscript(text) ? USER_PROMPT_NOT_HEARD : USER_PROMPT_UNAVAILABLE);
       return;
     }
     if (mode === "sim") {
       sendText({ type: "stt", session_id: sessionId, text, source: "sim", dialogue: "sim" });
+      if (isBlankTranscript(text)) {
+        speakPrompt(USER_PROMPT_NOT_HEARD);
+        return;
+      }
       void beginTts(text, "sim").catch((error: unknown) => {
-      reportLiveFailure(error);
-    });
+        reportLiveFailure(error);
+      });
       return;
     }
     sendText({ type: "stt", session_id: sessionId, text, source: "sim-asr", dialogue: "sim" });
+    if (isBlankTranscript(text)) {
+      voiceDiag({ event: "asr.empty", sessionId, deviceId, ...stats, textChars: 0 });
+      speakPrompt(USER_PROMPT_NOT_HEARD);
+      return;
+    }
     void speakFromOpenBot(text, turnIndex);
   }
 
@@ -708,15 +747,21 @@ function attachVoiceSession(
     }
     const detail = safeDetail(error);
     voiceDiag({ event: "live.failed", sessionId, deviceId, detail });
-    sendText({ type: "error", code: "live_stub", source: "openbot", dialogue: "openbot", detail });
+    speakPrompt(USER_PROMPT_UNAVAILABLE);
   }
 
-  async function beginTts(text: string, source: "sim" | "openbot", onDone?: () => void): Promise<void> {
+  async function beginTts(
+    text: string,
+    source: "sim" | "openbot",
+    onDone?: () => void,
+    isPrompt = false,
+  ): Promise<void> {
     aborted = false;
     speaking = true;
     play.start();
     const dialogue = source === "sim" ? "sim" : "openbot";
     sendText({ type: "tts", state: "start", session_id: sessionId, text, source, dialogue });
+    sendText({ type: "tts", state: "sentence_start", session_id: sessionId, text, source, dialogue });
     const finish = () => {
       onDone?.();
     };
@@ -754,7 +799,10 @@ function attachVoiceSession(
       finish();
     } catch (error) {
       speaking = false;
-      reportLiveFailure(error);
+      voiceDiag({ event: "tts.failed", sessionId, deviceId, detail: safeDetail(error) });
+      if (!isPrompt) {
+        speakPrompt(USER_PROMPT_UNAVAILABLE);
+      }
       finish();
     }
   }
@@ -790,6 +838,9 @@ function attachVoiceSession(
 /** ~3 minutes of 60 ms uplink frames, or 1.5 MB, whichever comes first. */
 const MAX_UPLINK_PACKETS = 3_000;
 const MAX_UPLINK_BYTES = 1_500_000;
+/** Device-facing Xiaozhi prompts. Never send type:error; use tts sentence_start instead. */
+const USER_PROMPT_NOT_HEARD = "没有听清，请再说一遍";
+const USER_PROMPT_UNAVAILABLE = "暂时无法回答，请稍后再试";
 
 const SECRET_TEXT = /Bearer\s+\S+|ctok_[A-Za-z0-9_-]+|azr_[A-Za-z0-9_-]+|grant[_-][A-Za-z0-9_.:-]{8,}/gi;
 

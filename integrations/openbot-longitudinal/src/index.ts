@@ -566,7 +566,7 @@ export async function runLiveTurn(input: LiveTurnInput, options: LiveTurnOptions
       deviceId: grant.deviceId,
       idempotencyKey: input.idempotencyKey,
       input: { type: "text", text: input.text },
-      gatewayAgentId: session.gatewayAgentId,
+      // gatewayAgentId is a stub identity field; the client must not set it.
       agentSessionKey: session.sessionKey,
     },
   );
@@ -749,15 +749,18 @@ async function sendJson(
 async function errorFrom(response: Response): Promise<LongitudinalError> {
   const text = await response.text();
   let errorCode: string | undefined;
+  let errorMessage: string | undefined;
   try {
     const parsed: unknown = JSON.parse(text);
     const error = asRecord(asRecord(parsed)?.error);
-    const code = error === undefined ? undefined : readString(error, "code");
-    errorCode = code;
+    errorCode = error === undefined ? undefined : readString(error, "code");
+    errorMessage = error === undefined ? undefined : readString(error, "message");
   } catch {
     errorCode = undefined;
+    errorMessage = undefined;
   }
-  const suffix = errorCode === undefined ? "" : ` ${errorCode}`;
+  const details = [errorCode, errorMessage].filter((part): part is string => Boolean(part)).join(" ");
+  const suffix = details.length === 0 ? "" : ` ${details}`;
   return new LongitudinalError(response.status, `${pathOf(response.url)} failed: ${response.status}${suffix}`, errorCode);
 }
 

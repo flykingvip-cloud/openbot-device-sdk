@@ -1,6 +1,7 @@
 /**
  * Isolation recipe for one Metalio listen turn (no HK, no websocat):
- * hello → uplink audio → listen stop → stt or a structured error, socket stays up.
+ * hello → uplink audio → listen stop → stt or a spoken tts sentence_start prompt, socket stays up.
+ * The Xiaozhi device is never sent type:error.
  *
  *   node --disable-warning=ExperimentalWarning --experimental-strip-types --test test/lab-voice-listen-stop.test.ts
  */
@@ -22,6 +23,9 @@ import { createReferenceHttpAsrProvider, type AsrProvider } from "../adapters/vo
 import { ControlPlane } from "../services/src/index.ts";
 import { startLabVoiceServer } from "../services/src/lab-voice.ts";
 import { connectLabVoice, type LabVoiceClient, type WsFrame } from "../services/src/voice-ws.ts";
+
+const PROMPT_NOT_HEARD = "没有听清，请再说一遍";
+const PROMPT_UNAVAILABLE = "暂时无法回答，请稍后再试";
 
 function plane(): ControlPlane {
   let refs = 0;
@@ -74,6 +78,11 @@ function textBody(frame: WsFrame): Record<string, unknown> | undefined {
   return JSON.parse(frame.payload.toString("utf8")) as Record<string, unknown>;
 }
 
+function isTtsSentenceStart(frame: WsFrame, text: string): boolean {
+  const body = textBody(frame);
+  return body?.type === "tts" && body.state === "sentence_start" && body.text === text;
+}
+
 async function hello(client: LabVoiceClient): Promise<string> {
   client.sendText(JSON.stringify(buildClientHello()));
   const frame = await client.nextFrame();
@@ -112,12 +121,20 @@ test("listen.stop with no uplink returns stt and keeps the socket", async () => 
     const sessionId = await hello(client);
     client.sendText(JSON.stringify({ type: "listen", state: "start", mode: "manual", session_id: sessionId }));
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
-    const frames = await readUntil(client, (frame) => frame.opcode === 1 && frame.payload.toString("utf8").includes("dialogue_unavailable"));
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_UNAVAILABLE),
+    );
     const messages = frames.map((frame) => textBody(frame)).filter((body) => body !== undefined);
     assert.equal(
       messages.some((body) => body.type === "stt" && body.text === "lab-transcript"),
       true,
     );
+    assert.equal(
+      messages.some((body) => body.type === "tts" && body.state === "sentence_start" && body.text === PROMPT_UNAVAILABLE),
+      true,
+    );
+    assert.equal(messages.some((body) => body.type === "error"), false);
     assert.equal(frames.some((frame) => frame.opcode === 8), false);
     await expectAbort(client, sessionId);
     client.close();
@@ -227,7 +244,7 @@ test("reference ASR posts decodable PCM and skips junk without closing", async (
   }
 });
 
-test("undecodable uplink returns stt plus uplink_incomplete and stays open", async () => {
+test("undecodable uplink returns empty stt plus a not-heard prompt and stays open", async () => {
   const rejections: unknown[] = [];
   const onReject = (error: unknown) => {
     rejections.push(error);
@@ -242,6 +259,12 @@ test("undecodable uplink returns stt plus uplink_incomplete and stays open", asy
     },
   });
   const server = await startLabVoiceServer(control, { host: "127.0.0.1", port: 0, env: {}, asrProvider: asr });
+  const seen: string[] = [];
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    seen.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return true;
+  }) as typeof process.stderr.write;
   try {
     const client = await connectLabVoice(
       server.url,
@@ -252,28 +275,33 @@ test("undecodable uplink returns stt plus uplink_incomplete and stays open", asy
     client.sendBinary(Buffer.alloc(80, 0x7f));
     client.sendBinary(Buffer.alloc(120, 0x01));
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
-    const frames = await readUntil(client, (frame) => frame.opcode === 1 && frame.payload.toString("utf8").includes("uplink_incomplete"));
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_NOT_HEARD),
+    );
     const messages = frames.map((frame) => textBody(frame)).filter((body) => body !== undefined);
     assert.equal(messages.some((body) => body.type === "stt" && body.text === ""), true);
-    const error = messages.find((body) => body.type === "error" && body.code === "uplink_incomplete");
-    assert.equal(error !== undefined, true);
-    const uplink = error?.uplink as { packets?: number; bytes?: number; approxDurationMs?: number };
-    assert.equal(uplink.packets, 2);
-    assert.equal(typeof uplink.bytes, "number");
-    assert.equal((uplink.bytes ?? 0) > 0, true);
-    assert.equal(uplink.approxDurationMs, 120);
+    assert.equal(
+      messages.some((body) => body.type === "tts" && body.state === "sentence_start" && body.text === PROMPT_NOT_HEARD),
+      true,
+    );
+    assert.equal(messages.some((body) => body.type === "error"), false);
+    const diag = seen.filter((line) => line.includes("VOICE-DIAG") && line.includes("uplink_incomplete")).join("\n");
+    assert.match(diag, /"packets":2/);
+    assert.match(diag, /"approxDurationMs":120/);
     assert.equal(frames.some((frame) => frame.opcode === 8), false);
     await expectAbort(client, sessionId);
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(rejections.length, 0);
     client.close();
   } finally {
+    process.stderr.write = originalWrite;
     process.off("unhandledRejection", onReject);
     await server.close();
   }
 });
 
-test("ASR throw becomes asr_failed and does not tear the socket down", async () => {
+test("ASR throw speaks a not-heard prompt and does not tear the socket down", async () => {
   const rejections: unknown[] = [];
   const onReject = (error: unknown) => {
     rejections.push(error);
@@ -303,12 +331,20 @@ test("ASR throw becomes asr_failed and does not tear the socket down", async () 
     );
     const sessionId = await hello(client);
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId, text: "should-not-crash" }));
-    const frames = await readUntil(client, (frame) => frame.opcode === 1 && frame.payload.toString("utf8").includes("asr_failed"));
-    const error = frames.map((frame) => textBody(frame)).find((body) => body?.code === "asr_failed");
-    assert.equal(error?.type, "error");
-    assert.equal(String(error?.detail).includes("ctok_secret"), false);
-    assert.equal(String(error?.detail).includes("grant-abcdefghijkl"), false);
-    assert.match(String(error?.detail), /\[redacted\]/);
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_NOT_HEARD),
+    );
+    const messages = frames.map((frame) => textBody(frame)).filter((body) => body !== undefined);
+    assert.equal(messages.some((body) => body.type === "stt" && body.text === ""), true);
+    assert.equal(
+      messages.some((body) => body.type === "tts" && body.state === "sentence_start" && body.text === PROMPT_NOT_HEARD),
+      true,
+    );
+    assert.equal(messages.some((body) => body.type === "error"), false);
+    const frameText = frames.map((frame) => frame.payload.toString("utf8")).join("\n");
+    assert.equal(frameText.includes("ctok_secret"), false);
+    assert.equal(frameText.includes("grant-abcdefghijkl"), false);
     assert.equal(frames.some((frame) => frame.opcode === 8), false);
     await expectAbort(client, sessionId);
     await new Promise((resolve) => setImmediate(resolve));
@@ -316,6 +352,8 @@ test("ASR throw becomes asr_failed and does not tear the socket down", async () 
     const diag = seen.filter((line) => line.includes("VOICE-DIAG")).join("\n");
     assert.equal(diag.includes(token), false);
     assert.equal(diag.includes("ctok_secret"), false);
+    assert.match(diag, /asr_failed/);
+    assert.match(diag, /\[redacted\]/);
     client.close();
   } finally {
     process.stderr.write = originalWrite;
@@ -424,6 +462,166 @@ test("protocol version 2 uplink is stripped to raw opus before ASR", async () =>
     assert.equal(frames.some((frame) => frame.opcode === 8), false);
     client.close();
   } finally {
+    encoder.destroy?.();
+    await server.close();
+  }
+});
+
+test("listen.detect does not finish the turn; later start plus uplink is transcribed", async () => {
+  const control = plane();
+  const token = bindDevice(control);
+  const encoder = createLibopusFrameEncoder({ sampleRate: 16000 });
+  const opus = encoder.encodeFrame(Buffer.alloc(pcmBytesPerFrame(16000)));
+  const seen: Buffer[] = [];
+  const asr: AsrProvider = {
+    async transcribe() {
+      return "unused";
+    },
+    async *stream(chunks) {
+      for await (const chunk of chunks) {
+        seen.push(Buffer.from(chunk.data));
+        if (chunk.endOfUtterance) {
+          yield { final: "from-uplink" };
+        }
+      }
+    },
+  };
+  const logs: string[] = [];
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    logs.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return true;
+  }) as typeof process.stderr.write;
+  const server = await startLabVoiceServer(control, { host: "127.0.0.1", port: 0, env: {}, asrProvider: asr });
+  try {
+    const client = await connectLabVoice(
+      server.url,
+      buildWebsocketHeaders({ deviceId: "dev-voice", clientId: "client-1", token }),
+    );
+    const sessionId = await hello(client);
+    client.sendText(JSON.stringify({ type: "listen", state: "detect", session_id: sessionId, text: "Hi wake" }));
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    const earlyDiag = logs.filter((line) => line.includes("VOICE-DIAG")).join("\n");
+    assert.match(earlyDiag, /listen\.detect/);
+    assert.equal(earlyDiag.includes("listen.finish.start"), false);
+    client.sendText(JSON.stringify({ type: "listen", state: "start", mode: "manual", session_id: sessionId }));
+    client.sendBinary(opus);
+    client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
+    const frames = await readUntil(client, (frame) => frame.opcode === 1 && frame.payload.toString("utf8").includes("from-uplink"));
+    const messages = frames.map((frame) => textBody(frame)).filter((body) => body !== undefined);
+    assert.equal(messages.some((body) => body.type === "stt" && body.text === "from-uplink"), true);
+    assert.equal(messages.some((body) => body.type === "stt" && body.text === "Hi wake"), false);
+    assert.equal(messages.some((body) => body.type === "error"), false);
+    assert.equal(seen.some((packet) => packet.equals(opus)), true);
+    const diag = logs.filter((line) => line.includes("VOICE-DIAG")).join("\n");
+    assert.match(diag, /listen\.detect/);
+    assert.match(diag, /"textChars":7/);
+    assert.equal(diag.includes("Hi wake"), false);
+    client.close();
+  } finally {
+    process.stderr.write = originalWrite;
+    encoder.destroy?.();
+    await server.close();
+  }
+});
+
+test("detect then start then empty stop speaks a not-heard prompt", async () => {
+  const control = plane();
+  const token = bindDevice(control);
+  const asr: AsrProvider = {
+    async transcribe() {
+      return "";
+    },
+    async *stream(chunks) {
+      for await (const chunk of chunks) {
+        if (chunk.endOfUtterance) {
+          yield { final: "" };
+        }
+      }
+    },
+  };
+  const server = await startLabVoiceServer(control, { host: "127.0.0.1", port: 0, env: {}, asrProvider: asr });
+  try {
+    const client = await connectLabVoice(
+      server.url,
+      buildWebsocketHeaders({ deviceId: "dev-voice", clientId: "client-1", token }),
+    );
+    const sessionId = await hello(client);
+    client.sendText(JSON.stringify({ type: "listen", state: "detect", session_id: sessionId, text: "Hi wake" }));
+    client.sendText(JSON.stringify({ type: "listen", state: "start", mode: "manual", session_id: sessionId }));
+    client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_NOT_HEARD),
+    );
+    const messages = frames.map((frame) => textBody(frame)).filter((body) => body !== undefined);
+    assert.equal(messages.some((body) => body.type === "stt" && body.text === ""), true);
+    assert.equal(
+      messages.some((body) => body.type === "tts" && body.state === "sentence_start" && body.text === PROMPT_NOT_HEARD),
+      true,
+    );
+    assert.equal(messages.some((body) => body.type === "error"), false);
+    assert.equal(frames.some((frame) => frame.opcode === 8), false);
+    await expectAbort(client, sessionId);
+    client.close();
+  } finally {
+    await server.close();
+  }
+});
+
+test("empty in-flight finish is cancelled by a later start and the next stop is transcribed", async () => {
+  const control = plane();
+  const token = bindDevice(control);
+  let calls = 0;
+  const asr: AsrProvider = {
+    async transcribe() {
+      return "unused";
+    },
+    async *stream(chunks) {
+      for await (const chunk of chunks) {
+        if (chunk.endOfUtterance) {
+          calls += 1;
+          if (calls === 1) {
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            yield { final: "first-empty" };
+            return;
+          }
+          yield { final: "second-turn" };
+        }
+      }
+    },
+  };
+  const logs: string[] = [];
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    logs.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
+    return true;
+  }) as typeof process.stderr.write;
+  const encoder = createLibopusFrameEncoder({ sampleRate: 16000 });
+  const opus = encoder.encodeFrame(Buffer.alloc(pcmBytesPerFrame(16000)));
+  const server = await startLabVoiceServer(control, { host: "127.0.0.1", port: 0, env: {}, asrProvider: asr });
+  try {
+    const client = await connectLabVoice(
+      server.url,
+      buildWebsocketHeaders({ deviceId: "dev-voice", clientId: "client-1", token }),
+    );
+    const sessionId = await hello(client);
+    client.sendText(JSON.stringify({ type: "listen", state: "start", mode: "manual", session_id: sessionId }));
+    client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    client.sendText(JSON.stringify({ type: "listen", state: "start", mode: "manual", session_id: sessionId }));
+    client.sendBinary(opus);
+    client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
+    const frames = await readUntil(client, (frame) => frame.opcode === 1 && frame.payload.toString("utf8").includes("second-turn"));
+    const messages = frames.map((frame) => textBody(frame)).filter((body) => body !== undefined);
+    assert.equal(messages.some((body) => body.type === "stt" && body.text === "second-turn"), true);
+    assert.equal(messages.some((body) => body.type === "stt" && body.text === "first-empty"), false);
+    assert.equal(messages.some((body) => body.type === "error"), false);
+    const diag = logs.filter((line) => line.includes("VOICE-DIAG")).join("\n");
+    assert.match(diag, /listen\.finish\.cancelled/);
+    client.close();
+  } finally {
+    process.stderr.write = originalWrite;
     encoder.destroy?.();
     await server.close();
   }
