@@ -11,8 +11,12 @@ import {
   parseServerHello,
 } from "../adapters/metalio/src/index.ts";
 import { ControlPlane } from "../services/src/index.ts";
+import { type AsrProvider } from "../adapters/voice/src/index.ts";
 import { LabPlayQueue, mockAsrTranscript, startLabVoiceServer } from "../services/src/lab-voice.ts";
 import { connectLabVoice, type WsFrame } from "../services/src/voice-ws.ts";
+
+const PROMPT_NOT_HEARD = "没有听清，请再说一遍";
+const PROMPT_UNAVAILABLE = "暂时无法回答，请稍后再试";
 
 function plane(): ControlPlane {
   let refs = 0;
@@ -69,6 +73,14 @@ async function readUntil(client: { nextFrame: () => Promise<WsFrame> }, accept: 
     }
   }
   throw new Error("lab voice frame was not received");
+}
+
+function isTtsSentenceStart(frame: WsFrame, text: string): boolean {
+  if (frame.opcode !== 1) {
+    return false;
+  }
+  const body = JSON.parse(frame.payload.toString("utf8")) as { type?: string; state?: string; text?: string };
+  return body.type === "tts" && body.state === "sentence_start" && body.text === text;
 }
 
 test("mock play queue keeps the 2400 ms residual and does not clear it on abort", () => {
@@ -222,10 +234,7 @@ test("mid-session expiry closes the socket and does not finish the utterance", a
     now = expiresAtMs;
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId, text: "too-late" }));
     const frame = await client.nextFrame();
-    assert.equal(frame.opcode, 1);
-    const body = JSON.parse(frame.payload.toString("utf8")) as { type: string; code: string };
-    assert.equal(body.type, "error");
-    assert.equal(body.code, "credential_expired");
+    assert.equal(frame.opcode, 8);
     assert.equal(server.book.pull(sessionId, 0).events.some((event) => event.type === "user.turn"), false);
     assert.equal(server.book.pull(sessionId, 0).events.some((event) => event.type === "stt"), false);
     client.close();
@@ -508,18 +517,25 @@ test("without TEST_MODE the lab voice does not speak the ASR text", async () => 
     client.sendText(JSON.stringify(buildClientHello()));
     const hello = parseServerHello(JSON.parse((await client.nextFrame()).payload.toString("utf8")));
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: hello.sessionId, text: "should-not-speak" }));
-    const frames = await readUntil(client, (frame) => frame.opcode === 1 && frame.payload.toString("utf8").includes("dialogue_unavailable"));
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_UNAVAILABLE),
+    );
     const messages = jsonFrames(frames);
-    assert.equal(messages.some((frame) => frame.type === "tts"), false);
-    assert.equal(frames.some((frame) => frame.opcode === 2), false);
-    assert.equal(messages.some((frame) => frame.type === "error" && frame.code === "dialogue_unavailable"), true);
+    assert.equal(messages.some((frame) => frame.type === "stt" && frame.text === "should-not-speak"), true);
+    assert.equal(
+      messages.some((frame) => frame.type === "tts" && frame.state === "sentence_start" && frame.text === PROMPT_UNAVAILABLE),
+      true,
+    );
+    assert.equal(messages.some((frame) => frame.type === "tts" && frame.text === "should-not-speak"), false);
+    assert.equal(messages.some((frame) => frame.type === "error"), false);
     client.close();
   } finally {
     await server.close();
   }
 });
 
-test("partial live credentials become an error frame instead of simulated speech", async () => {
+test("partial live credentials speak an unavailable prompt instead of simulated speech", async () => {
   const control = plane();
   const { token } = bindDevice(control);
   const server = await startLabVoiceServer(control, {
@@ -538,26 +554,73 @@ test("partial live credentials become an error frame instead of simulated speech
     client.sendText(JSON.stringify(buildClientHello()));
     const hello = parseServerHello(JSON.parse((await client.nextFrame()).payload.toString("utf8")));
     client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: hello.sessionId, text: "should-not-speak" }));
-    const frame = await client.nextFrame();
-    const body = JSON.parse(frame.payload.toString("utf8")) as { type?: string; code?: string };
-    if (body.type === "stt") {
-      const errorFrame = await client.nextFrame();
-      const errorBody = JSON.parse(errorFrame.payload.toString("utf8")) as { type?: string; code?: string };
-      assert.equal(errorBody.type, "error");
-      assert.equal(errorBody.code, "live_stub");
-    } else {
-      assert.equal(body.type, "error");
-      assert.equal(body.code, "live_stub");
-    }
-    const extra = await Promise.race([
-      client.nextFrame(),
-      new Promise<null>((resolve) => {
-        setTimeout(() => resolve(null), 40);
-      }),
-    ]);
-    assert.equal(extra, null);
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_UNAVAILABLE),
+    );
+    const messages = jsonFrames(frames);
+    assert.equal(messages.some((frame) => frame.type === "stt" && frame.text === "should-not-speak"), true);
+    assert.equal(
+      messages.some((frame) => frame.type === "tts" && frame.state === "sentence_start" && frame.text === PROMPT_UNAVAILABLE),
+      true,
+    );
+    assert.equal(messages.some((frame) => frame.type === "tts" && frame.text === "should-not-speak"), false);
+    assert.equal(messages.some((frame) => frame.type === "error"), false);
     client.close();
   } finally {
     await server.close();
   }
 });
+
+test("empty ASR in live mode speaks a not-heard prompt and does not post a turn", async () => {
+  const control = plane();
+  const { token } = bindDevice(control);
+  const stub = await startVoiceStub(false);
+  const asr: AsrProvider = {
+    async transcribe() {
+      return "";
+    },
+    async *stream(chunks) {
+      for await (const chunk of chunks) {
+        if (chunk.endOfUtterance) {
+          yield { final: "" };
+        }
+      }
+    },
+  };
+  const server = await startLabVoiceServer(control, {
+    host: "127.0.0.1",
+    port: 0,
+    env: voiceLiveEnv(stub.origin),
+    asrProvider: asr,
+  });
+  try {
+    const client = await connectLabVoice(
+      server.url,
+      buildWebsocketHeaders({ deviceId: "dev-voice", clientId: "client-1", token }),
+    );
+    client.sendText(JSON.stringify(buildClientHello()));
+    const hello = parseServerHello(JSON.parse((await client.nextFrame()).payload.toString("utf8")));
+    const sessionId = hello.sessionId ?? "";
+    client.sendText(JSON.stringify({ type: "listen", state: "detect", session_id: sessionId, text: "Hi wake" }));
+    client.sendText(JSON.stringify({ type: "listen", state: "start", mode: "manual", session_id: sessionId }));
+    client.sendText(JSON.stringify({ type: "listen", state: "stop", session_id: sessionId }));
+    const frames = await readUntil(
+      client,
+      (frame) => isTtsSentenceStart(frame, PROMPT_NOT_HEARD),
+    );
+    const messages = jsonFrames(frames);
+    assert.equal(messages.some((frame) => frame.type === "stt" && frame.text === ""), true);
+    assert.equal(
+      messages.some((frame) => frame.type === "tts" && frame.state === "sentence_start" && frame.text === PROMPT_NOT_HEARD),
+      true,
+    );
+    assert.equal(messages.some((frame) => frame.type === "error"), false);
+    assert.equal(stub.calls.some((call) => call.path.endsWith("/turns")), false);
+    client.close();
+  } finally {
+    await server.close();
+    await stub.close();
+  }
+});
+
