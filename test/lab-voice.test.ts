@@ -435,7 +435,7 @@ test("lab voice speaks OpenBot visible text and not the ASR transcript", async (
     assert.equal(tts.some((frame) => frame.text === "asr-distinct"), false);
     const turn = stub.calls.find((call) => call.path.endsWith("/turns"));
     const turnBody = turn?.body as { agentSessionKey?: string; gatewayAgentId?: string; text?: string };
-    assert.equal(turnBody.gatewayAgentId, "agent-voice");
+    assert.equal(turnBody.gatewayAgentId, undefined);
     assert.equal(turnBody.agentSessionKey, "device-dh:dh-voice:conv-voice");
     assert.equal(turnBody.text, "asr-distinct");
     client.close();

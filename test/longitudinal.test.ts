@@ -407,7 +407,7 @@ test("exchange, grant read, conversation, turn, and SSE stay on the integrations
     const turn = stub.calls.find((call) => call.path.endsWith("/turns"));
     assert.equal(turn?.idempotencyKey, "idem-1");
     const turnBody = turn?.body as { gatewayAgentId?: string; agentSessionKey?: string; text?: string; input?: { type?: string } };
-    assert.equal(turnBody.gatewayAgentId, "agent-lab");
+    assert.equal(turnBody.gatewayAgentId, undefined);
     assert.equal(turnBody.agentSessionKey, "device-dh:dh-live:conv-1");
     assert.equal(turnBody.text, "user-said-this");
     assert.equal(turnBody.input?.type, "text");
